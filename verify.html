@@ -1,1 +1,29 @@
-<!doctype html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/><title>Активация — Foody</title></head><body><p>Открываем ЛК…</p><script>const p=new URLSearchParams(location.search);const t=p.get('token');const api=p.get('api')||'';location.href=`./index.html?token=${encodeURIComponent(t||'')}&api=${encodeURIComponent(api)}`;</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Активация — Foody</title>
+  <link rel="stylesheet" href="./styles.css"/>
+</head>
+<body class="light" style="padding:24px">
+  <div class="card" style="max-width:720px;margin:0 auto">
+    <h3>Активация аккаунта</h3>
+    <p class="muted small">Перенаправляем в личный кабинет…</p>
+  </div>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const token = p.get('token');
+    const api = p.get('api') || '';
+    if (!token) {
+      location.href = './index.html' + (api ? ('?api='+encodeURIComponent(api)) : '');
+    } else {
+      // просто редиректим на ЛК — фронт сам дернет /verify/{token} и запомнит restaurant в localStorage
+      const q = new URLSearchParams();
+      if (api) q.set('api', api);
+      q.set('token', token);
+      location.href = './index.html?' + q.toString();
+    }
+  </script>
+</body>
+</html>
