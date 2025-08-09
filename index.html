@@ -1,74 +1,28 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Foody — Личный кабинет ресторана</title>
-  <link rel="stylesheet" href="./styles.css" />
-</head>
-<body class="light">
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">🍲</div>
-      <div class="title"><div class="name">Foody</div><div class="subtitle">ЛК ресторана</div></div>
-    </div>
-    <div class="top-actions">
-      <button id="tabOffers" class="btn primary">Офферы</button>
-      <button id="tabReservations" class="btn ghost">Брони</button>
-      <button id="refreshBtn" class="btn ghost">Обновить</button>
-    </div>
-  </header>
-
-  <main class="container">
-    <section id="status" class="card highlight">
-      <div><div class="muted small">Статус</div><div id="restInfo" class="status">Проверяем токен…</div></div>
-      <div class="env"><span class="badge">Tomsk UTC+7</span></div>
-    </section>
-
-    <section id="offersSection" class="card">
-      <h3>Новое предложение</h3>
-      <form id="createForm" class="form">
-        <div class="field"><label>Фото</label><input id="photo" type="file" accept=".jpg,.jpeg,.png,.webp" /></div>
-        <div class="field"><label>Название*</label><input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня" /></div>
-        <div class="field"><label>Описание</label><textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea></div>
-        <div class="row">
-          <div class="field"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199" /></div>
-          <div class="field"><label>Кол-во*</label><input id="qty" type="number" min="1" step="1" required placeholder="5" /></div>
-        </div>
-        <div class="field"><label>Действует до (локально, Томск UTC+7)</label><input id="expires" type="datetime-local" /><div class="hint">Если не указать — до 23:59 по Томску.</div></div>
-        <div class="actions"><button class="btn primary" type="submit">Сохранить</button><button class="btn ghost" type="reset">Сбросить</button></div>
-      </form>
-      <hr class="sep"/>
-      <div class="list-head"><h3>Мои предложения</h3><input id="search" class="input" placeholder="Поиск по названию…" /></div>
-      <div id="empty" class="empty hidden"><div class="empty-emoji">🗂️</div><div class="empty-title">Пока пусто</div></div>
-      <div id="offers" class="cards-grid"></div>
-    </section>
-
-    <section id="reservationsSection" class="card hidden">
-      <div class="list-head">
-        <h3>Брони</h3>
-        <div class="filters">
-          <select id="resFilter" class="input">
-            <option value="all">Все</option>
-            <option value="active">Активные</option>
-            <option value="redeemed">Погашенные</option>
-            <option value="expired">Истекшие</option>
-            <option value="canceled">Отменённые</option>
-          </select>
-          <button id="resRefresh" class="btn ghost">Обновить</button>
-        </div>
-      </div>
-      <div id="resEmpty" class="empty hidden"><div class="empty-emoji">📭</div><div class="empty-title">Броней пока нет</div></div>
-      <div class="table-wrap">
-        <table class="table" id="resTable">
-          <thead><tr><th>Код</th><th>Оффер</th><th>Покупатель</th><th>Статус</th><th>До</th><th>Создано</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-
-  <div id="toast" class="toast hidden"></div>
-  <script src="./rest.js"></script>
-</body>
-</html>
+<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Foody — ЛК</title><link rel="stylesheet" href="./styles.css"/></head><body>
+<div class="card"><b id="restInfo">Проверяем токен…</b></div>
+<div class="grid">
+  <div class="card">
+    <h3>Новое предложение</h3>
+    <form id="createForm">
+      <p><input id="photo" type="file" accept=".jpg,.jpeg,.png,.webp"></p>
+      <p><input id="title" placeholder="Название" required></p>
+      <p><textarea id="desc" rows="3" placeholder="Описание"></textarea></p>
+      <div class="grid"><p><input id="price" type="number" step="0.01" placeholder="Цена ₽" required></p><p><input id="qty" type="number" step="1" min="1" placeholder="Количество" required></p></div>
+      <p><input id="expires" type="datetime-local"></p>
+      <p><button type="submit">Сохранить</button></p>
+    </form>
+  </div>
+  <div class="card">
+    <h3>Брони</h3>
+    <p><select id="resFilter"><option value="all">Все</option><option value="active">Активные</option><option value="redeemed">Погашенные</option><option value="expired">Истекшие</option></select> <button id="resRefresh">Обновить</button></p>
+    <div class="table-wrap"><table><thead><tr><th>Код</th><th>Оффер</th><th>Покупатель</th><th>Статус</th><th>До</th><th>Создано</th></tr></thead><tbody id="resTable"></tbody></table></div>
+  </div>
+</div>
+<div class="card">
+  <h3>Мои предложения</h3>
+  <p><input id="search" placeholder="Поиск…"> <button id="refreshBtn">Обновить</button></p>
+  <div id="offers" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
+</div>
+<div id="toast" style="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111;color:#fff;padding:8px 12px;border-radius:8px;display:none"></div>
+<script src="./rest.js"></script>
+</body></html>
