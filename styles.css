@@ -56,21 +56,3 @@ input:focus, textarea:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgb
 .badge-status.redeemed{background:#eff6ff; color:#1e40af; border-color:#bfdbfe}
 .badge-status.expired{background:#fef2f2; color:#991b1b; border-color:#fecaca}
 .badge-status.canceled{background:#fefce8; color:#92400e; border-color:#fde68a}
-/* Плавающая кнопка "Добавить" — всегда сверху контента */
-.fab{
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 1000;
-  padding: 12px 16px;
-  border-radius: 14px;
-  border: 0;
-  background: linear-gradient(180deg, #3b82f6, #2563eb);
-  color: #fff;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba(37,99,235,.25);
-}
-
-/* Можешь скрыть нижний "footer", он не нужен */
-.footer{ display:none; }
