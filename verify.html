@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Активация ресторана</title>
+  <style>body{font-family:system-ui;margin:20px}</style>
+</head>
+<body>
+  <h2>Активация ресторана</h2>
+  <p>Эта заглушка переадресует в ЛК с вашим токеном.</p>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const token = p.get('token');
+    const api = p.get('api') || 'http://localhost:8000';
+    if (token){
+      location.href = './index.html?token='+encodeURIComponent(token)+'&api='+encodeURIComponent(api);
+    } else {
+      document.body.insertAdjacentHTML('beforeend','<p>Токен не найден.</p>');
+    }
+  </script>
+</body></html>
