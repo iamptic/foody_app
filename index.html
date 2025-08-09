@@ -37,6 +37,10 @@
         <h3>Быстрое добавление</h3>
         <form id="createForm" class="form">
           <div class="field">
+            <label>Фото блюда (jpg/png/webp, до ~5 МБ)</label>
+            <input id="photo" type="file" accept=".jpg,.jpeg,.png,.webp" />
+          </div>
+          <div class="field">
             <label>Название*</label>
             <input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня" />
           </div>
@@ -69,7 +73,7 @@
       <div class="card">
         <h3>Быстрые подсказки</h3>
         <ul class="tips">
-          <li>Заполняйте короткие названия: до 2–4 слов.</li>
+          <li>Добавляйте вертикальные фото 4:3 — они смотрятся лучше всего.</li>
           <li>Цена и количество обязательны.</li>
           <li>Срок можно не указывать — будет 23:59 (UTC+7).</li>
           <li>Редактируйте и удаляйте предложения прямо в списке ниже.</li>
@@ -97,10 +101,15 @@
     <button id="addFloating" class="fab">＋ Добавить предложение</button>
   </footer>
 
+  <!-- Edit modal -->
   <dialog id="editModal" class="modal">
     <form method="dialog" class="modal-card" id="editForm">
       <h3>Редактирование оффера</h3>
       <input type="hidden" id="editId" />
+      <div class="field">
+        <label>Фото блюда (заменить)</label>
+        <input id="editPhoto" type="file" accept=".jpg,.jpeg,.png,.webp" />
+      </div>
       <div class="field">
         <label>Название</label>
         <input id="editTitle" maxlength="120" />

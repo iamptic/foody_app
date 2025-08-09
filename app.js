@@ -8,6 +8,7 @@
   const els = {
     restInfo: document.getElementById('restInfo'),
     form: document.getElementById('createForm'),
+    photo: document.getElementById('photo'),
     title: document.getElementById('title'),
     desc: document.getElementById('desc'),
     price: document.getElementById('price'),
@@ -22,6 +23,7 @@
     editModal: document.getElementById('editModal'),
     editForm: document.getElementById('editForm'),
     editId: document.getElementById('editId'),
+    editPhoto: document.getElementById('editPhoto'),
     editTitle: document.getElementById('editTitle'),
     editDesc: document.getElementById('editDesc'),
     editPrice: document.getElementById('editPrice'),
@@ -47,14 +49,18 @@
   const card = (o) => {
     const div = document.createElement('div');
     div.className = 'offer';
+    const img = o.photo_url ? `<img class="thumb" src="${o.photo_url}" alt="${o.title}">` : `<div class="thumb"></div>`;
     div.innerHTML = `
-      <div class="title"><b>${o.title}</b></div>
-      <div class="meta">${o.description || ''}</div>
-      <div class="meta">Действует до: ${fmtDT(o.expires_at)}</div>
-      <div class="price">${fmtMoney(o.price)} • шт: ${o.quantity}</div>
-      <div class="ops">
-        <button class="btn ghost" data-edit="${o.id}">Редактировать</button>
-        <button class="btn ghost" data-del="${o.id}">Удалить</button>
+      ${img}
+      <div class="body">
+        <div class="title"><b>${o.title}</b></div>
+        <div class="meta">${o.description || ''}</div>
+        <div class="meta">Действует до: ${fmtDT(o.expires_at)}</div>
+        <div class="price">${fmtMoney(o.price)} • шт: ${o.quantity}</div>
+        <div class="ops">
+          <button class="btn ghost" data-edit="${o.id}">Редактировать</button>
+          <button class="btn ghost" data-del="${o.id}">Удалить</button>
+        </div>
       </div>
     `;
     div.querySelector('[data-edit]').onclick = () => openEdit(o);
@@ -101,16 +107,38 @@
     }
   };
 
+  // Upload helper
+  const uploadImage = async (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+    if (!r.ok) throw new Error('upload failed');
+    const data = await r.json();
+    return data.url;
+  };
+
+  // Create
   els.form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!restaurant) return showToast('Нет доступа: аккаунт не активирован');
+
+    // optional photo upload
+    let photo_url = null;
+    const file = els.photo.files?.[0];
+    try {
+      if (file) photo_url = await uploadImage(file);
+    } catch {
+      return showToast('Не удалось загрузить фото');
+    }
+
     const payload = {
       restaurant_id: restaurant.id,
       title: els.title.value.trim(),
       description: els.desc.value.trim(),
       price: parseFloat(els.price.value),
       quantity: parseInt(els.qty.value),
-      expires_at: els.expires.value ? new Date(els.expires.value).toISOString() : null
+      expires_at: els.expires.value ? new Date(els.expires.value).toISOString() : null,
+      photo_url
     };
     if (!payload.title || !isFinite(payload.price) || !isFinite(payload.quantity)) {
       return showToast('Заполните обязательные поля');
@@ -153,6 +181,16 @@
     if (els.editPrice.value !== '') patch.price = parseFloat(els.editPrice.value);
     if (els.editQty.value !== '') patch.quantity = parseInt(els.editQty.value);
     if (els.editExpires.value) patch.expires_at = new Date(els.editExpires.value).toISOString();
+
+    // optional new photo
+    if (els.editPhoto.files?.[0]) {
+      try {
+        patch.photo_url = await uploadImage(els.editPhoto.files[0]);
+      } catch {
+        return showToast('Не удалось загрузить новое фото');
+      }
+    }
+
     try {
       const r = await fetch(`${API}/offers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(patch)});
       const data = await r.json();
