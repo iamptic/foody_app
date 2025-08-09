@@ -61,15 +61,6 @@
       });
     } catch {}
   };
-// Прокрутить к форме и сфокусировать поле
-document.getElementById('addFloating').onclick = () => {
-  const form = document.getElementById('createForm');
-  if (form) {
-    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const title = document.getElementById('title');
-    if (title) title.focus();
-  }
-};
 
   const init = async () => {
     if (!els.restInfo) return;
