@@ -15,15 +15,10 @@
     const p = new URLSearchParams(location.search);
     const token = p.get('token');
     const api = p.get('api') || '';
-    if (!token) {
-      location.href = './index.html' + (api ? ('?api='+encodeURIComponent(api)) : '');
-    } else {
-      // просто редиректим на ЛК — фронт сам дернет /verify/{token} и запомнит restaurant в localStorage
-      const q = new URLSearchParams();
-      if (api) q.set('api', api);
-      q.set('token', token);
-      location.href = './index.html?' + q.toString();
-    }
+    const q = new URLSearchParams();
+    if (api) q.set('api', api);
+    if (token) q.set('token', token);
+    location.href = './index.html' + (q.toString() ? ('?' + q.toString()) : '');
   </script>
 </body>
 </html>

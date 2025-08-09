@@ -30,7 +30,7 @@
     editExpires: document.getElementById('editExpires'),
     resFilter: document.getElementById('resFilter'),
     resRefresh: document.getElementById('resRefresh'),
-    resTable: document.getElementById('resTable').querySelector('tbody'),
+    resTable: document.getElementById('resTable')?.querySelector('tbody'),
     resEmpty: document.getElementById('resEmpty'),
     logoutBtn: document.getElementById('logoutBtn'),
     search: document.getElementById('search'),
@@ -87,6 +87,7 @@
   };
 
   const renderReservations = () => {
+    if (!els.resTable) return;
     const f = els.resFilter.value;
     const arr = reservations.filter(r => f === 'all' ? true : r.status === f);
     els.resTable.innerHTML = '';
@@ -108,7 +109,26 @@
     catch { toast('Не удалось загрузить брони'); }
   };
 
+  const tryTelegramLogin = async () => {
+    try {
+      if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+        const tgId = Telegram.WebApp.initDataUnsafe.user.id;
+        const r = await fetch(`${API}/whoami?telegram_id=${tgId}`);
+        if (r.ok) {
+          const data = await r.json();
+          restaurant = { id: data.restaurant_id, name: data.restaurant_name };
+          localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
+          els.restInfo.textContent = `Вы вошли как: ${restaurant.name} (id ${restaurant.id})`;
+          await loadOffers(); await loadReservations();
+          return true;
+        }
+      }
+    } catch {}
+    return false;
+  };
+
   const init = async () => {
+    // 1) токен из URL
     if (token) {
       try {
         const r = await fetch(`${API}/verify/${token}`);
@@ -119,14 +139,18 @@
           els.restInfo.textContent = `Аккаунт активирован: ${restaurant.name} (id ${restaurant.id})`;
           await loadOffers(); await loadReservations(); return;
         }
-      } catch { /* fallthrough */ }
+      } catch {}
     }
+    // 2) localStorage
     if (restaurant && restaurant.id){
       els.restInfo.textContent = `Вы вошли как: ${restaurant.name} (id ${restaurant.id})`;
-      await loadOffers(); await loadReservations();
-    } else {
-      els.restInfo.textContent = 'Сначала активируйте аккаунт по ссылке из бота.';
+      await loadOffers(); await loadReservations(); return;
     }
+    // 3) Telegram auto-login
+    const ok = await tryTelegramLogin();
+    if (ok) return;
+    // 4) иначе
+    els.restInfo.textContent = 'Сначала активируйте аккаунт по ссылке из бота или привяжите Telegram.';
   };
 
   // Create
@@ -157,30 +181,30 @@
   });
 
   const openEdit = (o) => {
-    els.editId.value = o.id;
-    els.editTitle.value = o.title || '';
-    els.editDesc.value = o.description || '';
-    els.editPrice.value = o.price ?? '';
-    els.editQty.value = o.quantity ?? '';
+    document.getElementById('editId').value = o.id;
+    document.getElementById('editTitle').value = o.title || '';
+    document.getElementById('editDesc').value = o.description || '';
+    document.getElementById('editPrice').value = o.price ?? '';
+    document.getElementById('editQty').value = o.quantity ?? '';
     try {
       const d = new Date(o.expires_at);
       const iso = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
-      els.editExpires.value = iso;
-    } catch { els.editExpires.value = ''; }
+      document.getElementById('editExpires').value = iso;
+    } catch { document.getElementById('editExpires').value = ''; }
     document.getElementById('editModal').showModal();
   };
 
   document.getElementById('editForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const id = Number(els.editId.value);
+    const id = Number(document.getElementById('editId').value);
     const patch = {};
-    const f = els.editPhoto.files?.[0];
+    const f = document.getElementById('editPhoto').files?.[0];
     if (f){ try { patch.photo_url = await uploadImage(f); } catch { return toast('Не удалось загрузить новое фото'); } }
-    const t = els.editTitle.value.trim(); if (t) patch.title = t;
-    const d = els.editDesc.value.trim(); if (d) patch.description = d;
-    const p = els.editPrice.value; if (p !== '') patch.price = parseFloat(p);
-    const q = els.editQty.value; if (q !== '') patch.quantity = parseInt(q);
-    const e = els.editExpires.value; if (e) patch.expires_at = new Date(e).toISOString();
+    const t = document.getElementById('editTitle').value.trim(); if (t) patch.title = t;
+    const d = document.getElementById('editDesc').value.trim(); if (d) patch.description = d;
+    const p = document.getElementById('editPrice').value; if (p !== '') patch.price = parseFloat(p);
+    const q = document.getElementById('editQty').value; if (q !== '') patch.quantity = parseInt(q);
+    const e = document.getElementById('editExpires').value; if (e) patch.expires_at = new Date(e).toISOString();
     try {
       const r = await fetch(`${API}/offers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(patch)});
       const data = await r.json();
