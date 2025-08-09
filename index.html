@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FoodLoop — ЛК ресторана</title>
+  <title>Foody — ЛК ресторана</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial; margin: 0; padding: 20px; background: #0f1226; color: #e8eefc; }
@@ -15,15 +15,17 @@
     button { padding: 10px 14px; border:0; border-radius: 10px; background:#4c8cf5; color:#fff; font-weight:700; cursor:pointer }
     .row { display:grid; grid-template-columns: 1fr 1fr; gap:10px }
     .muted { opacity:.7 }
-    .list { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:12px; }
+    .list { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:12px; }
     .offer { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 12px }
+    .actions { display:flex; gap:8px; margin-top:8px}
+    .ghost { background: transparent; border:1px solid rgba(255,255,255,.2); color:#fff }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h2>Личный кабинет ресторана</h2>
+    <h2>Личный кабинет Foody</h2>
     <div class="card">
-      <div class="muted">После активации аккаунта вы сможете добавлять предложения.</div>
+      <div class="muted">После активации аккаунта вы сможете добавлять и редактировать предложения.</div>
       <div id="restInfo" class="muted"></div>
     </div>
 
@@ -43,8 +45,8 @@
           <input id="qty" type="number" placeholder="5" />
         </div>
       </div>
-      <label>Действует до (ISO, напр. 2025-12-31T20:30:00Z)</label>
-      <input id="expires" placeholder="2025-12-31T20:30:00Z" />
+      <label>Действует до (ISO, напр. 2025-12-31T20:30:00+07:00). Если пусто — сегодня 23:59 по Томску</label>
+      <input id="expires" placeholder="" />
       <div style="margin-top:10px"><button id="saveBtn">Сохранить</button></div>
     </div>
 
@@ -84,8 +86,22 @@
         items.filter(o => !restaurant || o.restaurant === restaurant.name).forEach(o=>{
           const d = document.createElement('div');
           d.className='offer';
-          d.innerHTML = '<b>'+o.title+'</b><br>'+ (o.description||'') + '<br><span class="muted">'+o.price+' ₽ • шт: '+o.quantity+'</span>';
+          d.innerHTML = '<b>'+o.title+'</b><br>'
+            + (o.description||'') 
+            + '<br><span class="muted">'+o.price+' ₽ • шт: '+o.quantity+'</span>'
+            + '<div class="actions">'
+            +   '<button class="ghost" data-edit="'+o.id+'">Редактировать</button>'
+            +   '<button class="ghost" data-del="'+o.id+'">Удалить</button>'
+            + '</div>';
           wrap.appendChild(d);
+        });
+
+        // handlers
+        wrap.querySelectorAll('[data-edit]').forEach(btn => {
+          btn.onclick = () => editOffer(Number(btn.dataset.edit));
+        });
+        wrap.querySelectorAll('[data-del]').forEach(btn => {
+          btn.onclick = () => deleteOffer(Number(btn.dataset.del));
         });
       });
     }
@@ -98,7 +114,7 @@
         description: el('desc').value,
         price: parseFloat(el('price').value),
         quantity: parseInt(el('qty').value),
-        expires_at: el('expires').value
+        expires_at: el('expires').value || null
       };
       fetch(BACKEND_URL + '/offers', {
         method: 'POST',
@@ -109,6 +125,33 @@
         else { alert('Ошибка: '+JSON.stringify(res)); }
       }).catch(e=> alert('Ошибка сети: '+e));
     };
+
+    function editOffer(id){
+      const price = prompt('Новая цена (₽):');
+      const qty = prompt('Новое количество (шт):');
+      const patch = {};
+      if (price) patch.price = parseFloat(price);
+      if (qty) patch.quantity = parseInt(qty);
+      if (!Object.keys(patch).length) return;
+      fetch(BACKEND_URL + '/offers/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch)
+      }).then(r=>r.json()).then(res=>{
+        if (res.offer_id){ alert('Обновлено ✅'); loadOffers(); }
+        else { alert('Ошибка: '+JSON.stringify(res)); }
+      }).catch(e=> alert('Ошибка сети: '+e));
+    }
+
+    function deleteOffer(id){
+      if (!confirm('Удалить оффер #' + id + '?')) return;
+      fetch(BACKEND_URL + '/offers/' + id, { method: 'DELETE' })
+      .then(r=>r.json())
+      .then(res=>{
+        if (res.status === 'deleted'){ alert('Удалено 🗑️'); loadOffers(); }
+        else { alert('Ошибка: '+JSON.stringify(res)); }
+      }).catch(e=> alert('Ошибка сети: '+e));
+    }
   </script>
 </body>
 </html>
