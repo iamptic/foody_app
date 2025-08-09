@@ -1,9 +1,9 @@
+// Patched rest.js: robust Mini App auto-login + gated logout visibility
 (() => {
   const urlp = new URLSearchParams(location.search);
   const API = urlp.get('api') || 'http://localhost:8000';
   const token = urlp.get('token');
 
-  // --- localStorage auth cache ---
   const saved = localStorage.getItem('foody_restaurant');
   let restaurant = saved ? JSON.parse(saved) : null;
 
@@ -41,18 +41,38 @@
   const fmtDT = (s) => { try { return new Date(s).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s||'—'; } };
   const badge = (status) => `<span class="badge-status ${status}">${status}</span>`;
 
-  const uploadImage = async (file) => {
-    const initRes = await fetch(`${API}/upload_init`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ filename: file.name, content_type: file.type || 'image/jpeg' })
+  const showLoggedUI = () => {
+    els.restInfo.textContent = `Вы вошли как: ${restaurant.name} (id ${restaurant.id})`;
+    const btn = document.getElementById('logoutBtn');
+    if (btn) btn.style.display = 'inline-flex';
+  };
+
+  const waitTgUser = () =>
+    new Promise((resolve) => {
+      let tries = 0;
+      const timer = setInterval(() => {
+        tries++;
+        const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        if (u || tries > 10) { // ~1s
+          clearInterval(timer);
+          resolve(u || null);
+        }
+      }, 100);
     });
-    if (!initRes.ok) throw new Error('upload_init failed');
-    const initData = await initRes.json();
-    if (file.size > (initData.max_mb||4)*1024*1024) throw new Error('too_large');
-    const putRes = await fetch(initData.upload_url, { method:'PUT', headers: initData.headers||{'Content-Type': file.type||'image/jpeg'}, body: file });
-    if (!putRes.ok) throw new Error('put_failed');
-    return initData.public_url;
+
+  const tryTelegramLogin = async () => {
+    const u = await waitTgUser();
+    if (!u) return false;
+    try {
+      const r = await fetch(`${API}/whoami?telegram_id=${u.id}`);
+      if (!r.ok) return false;
+      const data = await r.json();
+      restaurant = { id: data.restaurant_id, name: data.restaurant_name };
+      localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
+      showLoggedUI();
+      await loadOffers(); await loadReservations();
+      return true;
+    } catch { return false; }
   };
 
   const card = (o) => {
@@ -109,26 +129,8 @@
     catch { toast('Не удалось загрузить брони'); }
   };
 
-  const tryTelegramLogin = async () => {
-    try {
-      if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
-        const tgId = Telegram.WebApp.initDataUnsafe.user.id;
-        const r = await fetch(`${API}/whoami?telegram_id=${tgId}`);
-        if (r.ok) {
-          const data = await r.json();
-          restaurant = { id: data.restaurant_id, name: data.restaurant_name };
-          localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
-          els.restInfo.textContent = `Вы вошли как: ${restaurant.name} (id ${restaurant.id})`;
-          await loadOffers(); await loadReservations();
-          return true;
-        }
-      }
-    } catch {}
-    return false;
-  };
-
   const init = async () => {
-    // 1) токен из URL
+    // 1) Первичная активация через токен
     if (token) {
       try {
         const r = await fetch(`${API}/verify/${token}`);
@@ -137,19 +139,20 @@
           restaurant = { id: data.restaurant_id, name: data.restaurant_name };
           localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
           els.restInfo.textContent = `Аккаунт активирован: ${restaurant.name} (id ${restaurant.id})`;
+          const btn = document.getElementById('logoutBtn'); if (btn) btn.style.display='inline-flex';
           await loadOffers(); await loadReservations(); return;
         }
       } catch {}
     }
-    // 2) localStorage
-    if (restaurant && restaurant.id){
-      els.restInfo.textContent = `Вы вошли как: ${restaurant.name} (id ${restaurant.id})`;
+    // 2) Обычный вход из браузера (localStorage)
+    if (restaurant?.id){
+      showLoggedUI();
       await loadOffers(); await loadReservations(); return;
     }
-    // 3) Telegram auto-login
+    // 3) Telegram Mini App auto-login
     const ok = await tryTelegramLogin();
     if (ok) return;
-    // 4) иначе
+    // 4) Нет входа — просим активировать/привязать
     els.restInfo.textContent = 'Сначала активируйте аккаунт по ссылке из бота или привяжите Telegram.';
   };
 
@@ -181,30 +184,30 @@
   });
 
   const openEdit = (o) => {
-    document.getElementById('editId').value = o.id;
-    document.getElementById('editTitle').value = o.title || '';
-    document.getElementById('editDesc').value = o.description || '';
-    document.getElementById('editPrice').value = o.price ?? '';
-    document.getElementById('editQty').value = o.quantity ?? '';
+    els.editId.value = o.id;
+    els.editTitle.value = o.title || '';
+    els.editDesc.value = o.description || '';
+    els.editPrice.value = o.price ?? '';
+    els.editQty.value = o.quantity ?? '';
     try {
       const d = new Date(o.expires_at);
       const iso = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
-      document.getElementById('editExpires').value = iso;
-    } catch { document.getElementById('editExpires').value = ''; }
+      els.editExpires.value = iso;
+    } catch { els.editExpires.value = ''; }
     document.getElementById('editModal').showModal();
   };
 
   document.getElementById('editForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const id = Number(document.getElementById('editId').value);
+    const id = Number(els.editId.value);
     const patch = {};
-    const f = document.getElementById('editPhoto').files?.[0];
+    const f = els.editPhoto.files?.[0];
     if (f){ try { patch.photo_url = await uploadImage(f); } catch { return toast('Не удалось загрузить новое фото'); } }
-    const t = document.getElementById('editTitle').value.trim(); if (t) patch.title = t;
-    const d = document.getElementById('editDesc').value.trim(); if (d) patch.description = d;
-    const p = document.getElementById('editPrice').value; if (p !== '') patch.price = parseFloat(p);
-    const q = document.getElementById('editQty').value; if (q !== '') patch.quantity = parseInt(q);
-    const e = document.getElementById('editExpires').value; if (e) patch.expires_at = new Date(e).toISOString();
+    const t = els.editTitle.value.trim(); if (t) patch.title = t;
+    const d = els.editDesc.value.trim(); if (d) patch.description = d;
+    const p = els.editPrice.value; if (p !== '') patch.price = parseFloat(p);
+    const q = els.editQty.value; if (q !== '') patch.quantity = parseInt(q);
+    const e = els.editExpires.value; if (e) patch.expires_at = new Date(e).toISOString();
     try {
       const r = await fetch(`${API}/offers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(patch)});
       const data = await r.json();
