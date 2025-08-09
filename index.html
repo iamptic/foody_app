@@ -3,155 +3,135 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Foody — ЛК ресторана</title>
+  <title>Foody — Личный кабинет ресторана</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial; margin: 0; padding: 20px; background: #0f1226; color: #e8eefc; }
-    .wrap { max-width: 860px; margin: 0 auto; }
-    h2 { margin: 0 0 14px }
-    .card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 14px; margin-bottom: 14px }
-    label { display:block; font-size: 13px; opacity: .8; margin-top: 8px }
-    input, textarea { width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.05); color:#fff; }
-    button { padding: 10px 14px; border:0; border-radius: 10px; background:#4c8cf5; color:#fff; font-weight:700; cursor:pointer }
-    .row { display:grid; grid-template-columns: 1fr 1fr; gap:10px }
-    .muted { opacity:.7 }
-    .list { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:12px; }
-    .offer { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 12px }
-    .actions { display:flex; gap:8px; margin-top:8px}
-    .ghost { background: transparent; border:1px solid rgba(255,255,255,.2); color:#fff }
-  </style>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="wrap">
-    <h2>Личный кабинет Foody</h2>
-    <div class="card">
-      <div class="muted">После активации аккаунта вы сможете добавлять и редактировать предложения.</div>
-      <div id="restInfo" class="muted"></div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🍲</div>
+      <div class="title">
+        <div class="name">Foody</div>
+        <div class="subtitle">Личный кабинет ресторана</div>
+      </div>
     </div>
+    <div class="top-actions">
+      <button id="refreshBtn" class="btn ghost" title="Обновить">Обновить</button>
+    </div>
+  </header>
 
-    <div class="card">
-      <h3>Новое предложение</h3>
-      <label>Название</label>
-      <input id="title" placeholder="Например, Набор выпечки" />
-      <label>Описание</label>
-      <textarea id="desc" rows="3" placeholder="Краткое описание..."></textarea>
-      <div class="row">
-        <div>
-          <label>Цена (₽)</label>
-          <input id="price" type="number" step="0.01" placeholder="3.50" />
-        </div>
-        <div>
-          <label>Количество</label>
-          <input id="qty" type="number" placeholder="5" />
+  <main class="container">
+    <section class="card highlight">
+      <div>
+        <div class="muted small">Статус</div>
+        <div id="restInfo" class="status">Проверяем токен…</div>
+      </div>
+      <div class="env">
+        <span class="badge">Tomsk UTC+7</span>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <div class="card">
+        <h3>Быстрое добавление</h3>
+        <form id="createForm" class="form">
+          <div class="field">
+            <label>Название*</label>
+            <input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня" />
+          </div>
+          <div class="field">
+            <label>Описание</label>
+            <textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав, условия…"></textarea>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>Цена (₽)*</label>
+              <input id="price" type="number" step="0.01" min="0" required placeholder="199" />
+            </div>
+            <div class="field">
+              <label>Количество*</label>
+              <input id="qty" type="number" min="1" step="1" required placeholder="5" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Действует до (локально, Томск UTC+7)</label>
+            <input id="expires" type="datetime-local" />
+            <div class="hint">Если не заполнить — поставим автоматически сегодня 23:59 по Томску.</div>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="submit">Сохранить</button>
+            <button class="btn ghost" type="reset">Сбросить</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Быстрые подсказки</h3>
+        <ul class="tips">
+          <li>Заполняйте короткие названия: до 2–4 слов.</li>
+          <li>Цена и количество обязательны.</li>
+          <li>Срок можно не указывать — будет 23:59 (UTC+7).</li>
+          <li>Редактируйте и удаляйте предложения прямо в списке ниже.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="list-head">
+        <h3>Мои предложения</h3>
+        <div class="filters">
+          <input id="search" class="input" placeholder="Поиск по названию…" />
         </div>
       </div>
-      <label>Действует до (ISO, напр. 2025-12-31T20:30:00+07:00). Если пусто — сегодня 23:59 по Томску</label>
-      <input id="expires" placeholder="" />
-      <div style="margin-top:10px"><button id="saveBtn">Сохранить</button></div>
-    </div>
+      <div id="empty" class="empty hidden">
+        <div class="empty-emoji">🗂️</div>
+        <div class="empty-title">Пока пусто</div>
+        <div class="empty-sub">Сохраните первое предложение в форме выше.</div>
+      </div>
+      <div id="offers" class="cards-grid"></div>
+    </section>
+  </main>
 
-    <div class="card">
-      <h3>Мои предложения</h3>
-      <div id="offers" class="list"></div>
-    </div>
-  </div>
+  <footer class="footer">
+    <button id="addFloating" class="fab">＋ Добавить предложение</button>
+  </footer>
 
-  <script>
-    const tg = window.Telegram?.WebApp; tg?.expand?.();
-    const urlp = new URLSearchParams(location.search);
-    const BACKEND_URL = urlp.get('api') || 'http://localhost:8000';
+  <dialog id="editModal" class="modal">
+    <form method="dialog" class="modal-card" id="editForm">
+      <h3>Редактирование оффера</h3>
+      <input type="hidden" id="editId" />
+      <div class="field">
+        <label>Название</label>
+        <input id="editTitle" maxlength="120" />
+      </div>
+      <div class="field">
+        <label>Описание</label>
+        <textarea id="editDesc" rows="3" maxlength="600"></textarea>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Цена (₽)</label>
+          <input id="editPrice" type="number" step="0.01" min="0" />
+        </div>
+        <div class="field">
+          <label>Количество</label>
+          <input id="editQty" type="number" step="1" min="0" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Действует до (локально, Томск UTC+7)</label>
+        <input id="editExpires" type="datetime-local" />
+      </div>
+      <div class="actions end">
+        <button class="btn ghost" value="cancel">Отмена</button>
+        <button class="btn primary" id="editSubmit" value="default">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
 
-    let restaurant = null; // {id, name}
+  <div id="toast" class="toast hidden"></div>
 
-    const token = urlp.get('token');
-    if (token) {
-      fetch(BACKEND_URL + '/verify/' + token).then(r=>r.json()).then(data=>{
-        if (data.restaurant_id){
-          restaurant = { id: data.restaurant_id, name: data.restaurant_name };
-          document.getElementById('restInfo').textContent = 'Аккаунт активирован: ' + restaurant.name + ' (id ' + restaurant.id + ')';
-          loadOffers();
-        } else {
-          document.getElementById('restInfo').textContent = 'Ошибка активации: ' + JSON.stringify(data);
-        }
-      }).catch(()=>{
-        document.getElementById('restInfo').textContent = 'Сервер недоступен';
-      });
-    }
-
-    function el(id){ return document.getElementById(id) }
-
-    function loadOffers(){
-      fetch(BACKEND_URL + '/offers').then(r=>r.json()).then(items=>{
-        const wrap = el('offers'); wrap.innerHTML='';
-        items.filter(o => !restaurant || o.restaurant === restaurant.name).forEach(o=>{
-          const d = document.createElement('div');
-          d.className='offer';
-          d.innerHTML = '<b>'+o.title+'</b><br>'
-            + (o.description||'') 
-            + '<br><span class="muted">'+o.price+' ₽ • шт: '+o.quantity+'</span>'
-            + '<div class="actions">'
-            +   '<button class="ghost" data-edit="'+o.id+'">Редактировать</button>'
-            +   '<button class="ghost" data-del="'+o.id+'">Удалить</button>'
-            + '</div>';
-          wrap.appendChild(d);
-        });
-
-        // handlers
-        wrap.querySelectorAll('[data-edit]').forEach(btn => {
-          btn.onclick = () => editOffer(Number(btn.dataset.edit));
-        });
-        wrap.querySelectorAll('[data-del]').forEach(btn => {
-          btn.onclick = () => deleteOffer(Number(btn.dataset.del));
-        });
-      });
-    }
-
-    el('saveBtn').onclick = () => {
-      if (!restaurant){ alert('Сначала активируйте аккаунт по ссылке из бота.'); return; }
-      const payload = {
-        restaurant_id: restaurant.id,
-        title: el('title').value,
-        description: el('desc').value,
-        price: parseFloat(el('price').value),
-        quantity: parseInt(el('qty').value),
-        expires_at: el('expires').value || null
-      };
-      fetch(BACKEND_URL + '/offers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).then(r=>r.json()).then(res=>{
-        if (res.offer_id){ alert('Сохранено ✅'); loadOffers(); }
-        else { alert('Ошибка: '+JSON.stringify(res)); }
-      }).catch(e=> alert('Ошибка сети: '+e));
-    };
-
-    function editOffer(id){
-      const price = prompt('Новая цена (₽):');
-      const qty = prompt('Новое количество (шт):');
-      const patch = {};
-      if (price) patch.price = parseFloat(price);
-      if (qty) patch.quantity = parseInt(qty);
-      if (!Object.keys(patch).length) return;
-      fetch(BACKEND_URL + '/offers/' + id, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch)
-      }).then(r=>r.json()).then(res=>{
-        if (res.offer_id){ alert('Обновлено ✅'); loadOffers(); }
-        else { alert('Ошибка: '+JSON.stringify(res)); }
-      }).catch(e=> alert('Ошибка сети: '+e));
-    }
-
-    function deleteOffer(id){
-      if (!confirm('Удалить оффер #' + id + '?')) return;
-      fetch(BACKEND_URL + '/offers/' + id, { method: 'DELETE' })
-      .then(r=>r.json())
-      .then(res=>{
-        if (res.status === 'deleted'){ alert('Удалено 🗑️'); loadOffers(); }
-        else { alert('Ошибка: '+JSON.stringify(res)); }
-      }).catch(e=> alert('Ошибка сети: '+e));
-    }
-  </script>
+  <script src="./app.js"></script>
 </body>
 </html>
