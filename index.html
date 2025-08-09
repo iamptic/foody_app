@@ -4,17 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Foody — Личный кабинет</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body class="light">
   <header class="topbar">
     <div class="brand">
       <div class="logo">🍲</div>
-      <div class="title">
-        <div class="name">Foody</div>
-        <div class="subtitle">ЛК ресторана</div>
-      </div>
+      <div class="title"><div class="name">Foody</div><div class="subtitle">ЛК ресторана</div></div>
     </div>
     <div class="top-actions">
       <button id="refreshBtn" class="btn ghost">Обновить</button>
@@ -23,10 +19,7 @@
 
   <main class="container">
     <section class="card highlight">
-      <div>
-        <div class="muted small">Статус</div>
-        <div id="restInfo" class="status">Проверяем токен…</div>
-      </div>
+      <div><div class="muted small">Статус</div><div id="restInfo" class="status">Проверяем токен…</div></div>
       <div class="env"><span class="badge">Tomsk UTC+7</span></div>
     </section>
 
@@ -41,17 +34,13 @@
             <div class="field"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199" /></div>
             <div class="field"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5" /></div>
           </div>
-          <div class="field">
-            <label>Действует до (локально, Томск UTC+7)</label>
-            <input id="expires" type="datetime-local" />
-            <div class="hint">Если не указать — автоматически сегодня 23:59 по Томску.</div>
-          </div>
+          <div class="field"><label>Действует до (локально, Томск UTC+7)</label><input id="expires" type="datetime-local" /><div class="hint">Если не укажете — до 23:59 по Томску.</div></div>
           <div class="actions"><button class="btn primary" type="submit">Сохранить</button><button class="btn ghost" type="reset">Сбросить</button></div>
         </form>
       </div>
       <div class="card">
         <h3>Подсказки</h3>
-        <ul class="tips"><li>Короткие названия — лучше CTR.</li><li>Фото 4:3 смотрятся аккуратнее.</li><li>Редактируйте/удаляйте в списке ниже.</li></ul>
+        <ul class="tips"><li>Короткие названия — лучше CTR.</li><li>Фото 4:3 выглядят аккуратнее.</li><li>Редактируйте/удаляйте в списке ниже.</li></ul>
       </div>
     </section>
 
@@ -59,6 +48,29 @@
       <div class="list-head"><h3>Мои предложения</h3><div class="filters"><input id="search" class="input" placeholder="Поиск по названию…" /></div></div>
       <div id="empty" class="empty hidden"><div class="empty-emoji">🗂️</div><div class="empty-title">Пока пусто</div><div class="empty-sub">Добавьте первое предложение выше.</div></div>
       <div id="offers" class="cards-grid"></div>
+    </section>
+
+    <section class="card">
+      <div class="list-head">
+        <h3>Брони</h3>
+        <div class="filters">
+          <select id="resFilter" class="input">
+            <option value="all">Все</option>
+            <option value="active">Активные</option>
+            <option value="redeemed">Погашенные</option>
+            <option value="expired">Истекшие</option>
+            <option value="canceled">Отменённые</option>
+          </select>
+          <button id="resRefresh" class="btn ghost">Обновить</button>
+        </div>
+      </div>
+      <div id="resEmpty" class="empty hidden"><div class="empty-emoji">📭</div><div class="empty-title">Броней пока нет</div></div>
+      <div class="table-wrap">
+        <table class="table" id="resTable">
+          <thead><tr><th>Код</th><th>Оффер</th><th>Покупатель</th><th>Статус</th><th>Действует до</th><th>Создано</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
   </main>
 

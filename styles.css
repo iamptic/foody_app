@@ -48,3 +48,11 @@ input:focus, textarea:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgb
 .status{font-weight:700}
 .env{display:flex; gap:8px; align-items:center}
 .top-actions{display:flex; gap:8px; align-items:center}
+.table-wrap{overflow:auto}
+.table{width:100%; border-collapse:collapse}
+.table th,.table td{padding:10px 8px; border-bottom:1px solid var(--border); text-align:left; font-size:14px}
+.badge-status{display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; font-weight:700; font-size:12px; border:1px solid var(--border)}
+.badge-status.active{background:#ecfdf5; color:#065f46; border-color:#a7f3d0}
+.badge-status.redeemed{background:#eff6ff; color:#1e40af; border-color:#bfdbfe}
+.badge-status.expired{background:#fef2f2; color:#991b1b; border-color:#fecaca}
+.badge-status.canceled{background:#fefce8; color:#92400e; border-color:#fde68a}

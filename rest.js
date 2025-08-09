@@ -1,5 +1,4 @@
 (() => {
-  const tg = window.Telegram?.WebApp; try { tg?.expand?.(); } catch(_) {}
   const urlp = new URLSearchParams(location.search);
   const API = urlp.get('api') || 'http://localhost:8000';
   const token = urlp.get('token');
@@ -27,15 +26,35 @@
     editDesc: document.getElementById('editDesc'),
     editPrice: document.getElementById('editPrice'),
     editQty: document.getElementById('editQty'),
-    editExpires: document.getElementById('editExpires')
+    editExpires: document.getElementById('editExpires'),
+    resFilter: document.getElementById('resFilter'),
+    resRefresh: document.getElementById('resRefresh'),
+    resTable: document.getElementById('resTable').querySelector('tbody'),
+    resEmpty: document.getElementById('resEmpty'),
   };
 
   let restaurant = null;
   let allOffers = [];
+  let reservations = [];
 
   const toast = (msg) => { els.toast.textContent = msg; els.toast.style.display='block'; setTimeout(()=> els.toast.style.display='none', 2200); };
   const money = (v) => (isFinite(v) ? new Intl.NumberFormat('ru-RU').format(v) + ' ₽' : '—');
   const fmtDT = (s) => { try { return new Date(s).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s||'—'; } };
+  const badge = (status) => `<span class="badge-status ${status}">${status}</span>`;
+
+  const uploadImage = async (file) => {
+    const initRes = await fetch(`${API}/upload_init`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ filename: file.name, content_type: file.type || 'image/jpeg' })
+    });
+    if (!initRes.ok) throw new Error('upload_init failed');
+    const initData = await initRes.json();
+    if (file.size > (initData.max_mb||4)*1024*1024) throw new Error('too_large');
+    const putRes = await fetch(initData.upload_url, { method:'PUT', headers: initData.headers||{'Content-Type': file.type||'image/jpeg'}, body: file });
+    if (!putRes.ok) throw new Error('put_failed');
+    return initData.public_url;
+  };
 
   const card = (o) => {
     const div = document.createElement('div');
@@ -57,13 +76,34 @@
     return div;
   };
 
-  const render = () => {
+  const renderOffers = () => {
     const q = (els.search.value || '').trim().toLowerCase();
-    const mine = allOffers.filter(o => !restaurant || o.restaurant === restaurant.name);
-    const arr = q ? mine.filter(o => o.title.toLowerCase().includes(q)) : mine;
+    const arr = q ? allOffers.filter(o => o.title.toLowerCase().includes(q)) : allOffers;
     els.offers.innerHTML = '';
     if (!arr.length) els.empty.classList.remove('hidden'); else els.empty.classList.add('hidden');
     arr.forEach(o => els.offers.appendChild(card(o)));
+  };
+
+  const renderReservations = () => {
+    const f = els.resFilter.value;
+    const arr = reservations.filter(r => f === 'all' ? true : r.status === f);
+    els.resTable.innerHTML = '';
+    if (!arr.length) { els.resEmpty.classList.remove('hidden'); return; } else { els.resEmpty.classList.add('hidden'); }
+    arr.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><b>${r.code}</b></td><td>${r.offer_title}</td><td>${r.buyer_name || '—'}</td><td>${badge(r.status)}</td><td>${fmtDT(r.expires_at)}</td><td>${fmtDT(r.created_at)}</td>`;
+      els.resTable.appendChild(tr);
+    });
+  };
+
+  const loadOffers = async () => {
+    try { const r = await fetch(`${API}/offers`); allOffers = await r.json(); renderOffers(); }
+    catch { toast('Не удалось загрузить предложения'); }
+  };
+  const loadReservations = async () => {
+    if (!restaurant) return;
+    try { const r = await fetch(`${API}/restaurant_reservations/${restaurant.id}`); reservations = await r.json(); renderReservations(); }
+    catch { toast('Не удалось загрузить брони'); }
   };
 
   const init = async () => {
@@ -75,41 +115,34 @@
         restaurant = { id: data.restaurant_id, name: data.restaurant_name };
         els.restInfo.textContent = `Аккаунт активирован: ${restaurant.name} (id ${restaurant.id})`;
         await loadOffers();
+        await loadReservations();
       } else { els.restInfo.textContent = 'Ошибка активации: ' + JSON.stringify(data); }
     } catch { els.restInfo.textContent = 'Сервер недоступен'; }
   };
 
-  const loadOffers = async () => {
-    try { const r = await fetch(`${API}/offers`); allOffers = await r.json(); render(); }
-    catch { toast('Не удалось загрузить предложения'); }
-  };
-
-  const uploadImage = async (file) => {
-    const fd = new FormData(); fd.append('file', file);
-    const r = await fetch(`${API}/upload`, { method:'POST', body: fd });
-    if (!r.ok) throw new Error('upload failed');
-    const data = await r.json(); return data.url;
-  };
-
-  els.form.addEventListener('submit', async (ev) => {
+  // Create
+  document.getElementById('createForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!restaurant) return toast('Нет доступа: аккаунт не активирован');
+    const photoInput = document.getElementById('photo');
     let photo_url = null;
-    if (els.photo.files?.[0]) { try { photo_url = await uploadImage(els.photo.files[0]); } catch { return toast('Не удалось загрузить фото'); } }
+    if (photoInput.files?.[0]) {
+      try { photo_url = await uploadImage(photoInput.files[0]); } catch { return toast('Не удалось загрузить фото'); }
+    }
     const payload = {
       restaurant_id: restaurant.id,
-      title: els.title.value.trim(),
-      description: els.desc.value.trim(),
-      price: parseFloat(els.price.value),
-      quantity: parseInt(els.qty.value),
-      expires_at: els.expires.value ? new Date(els.expires.value).toISOString() : null,
+      title: document.getElementById('title').value.trim(),
+      description: document.getElementById('desc').value.trim(),
+      price: parseFloat(document.getElementById('price').value),
+      quantity: parseInt(document.getElementById('qty').value),
+      expires_at: document.getElementById('expires').value ? new Date(document.getElementById('expires').value).toISOString() : null,
       photo_url
     };
     if (!payload.title || !isFinite(payload.price) || !isFinite(payload.quantity)) return toast('Заполните обязательные поля');
     try {
       const r = await fetch(`${API}/offers`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
       const data = await r.json();
-      if (data.offer_id){ toast('Сохранено ✅'); els.form.reset(); loadOffers(); }
+      if (data.offer_id){ toast('Сохранено ✅'); ev.target.reset(); loadOffers(); }
       else { toast('Ошибка: ' + JSON.stringify(data)); }
     } catch { toast('Ошибка сети'); }
   });
@@ -154,9 +187,10 @@
     } catch { toast('Ошибка сети'); }
   };
 
-  document.getElementById('refreshBtn').onclick = () => loadOffers();
+  // Controls
+  document.getElementById('refreshBtn').onclick = () => { loadOffers(); loadReservations(); };
   document.getElementById('addFloating').onclick = () => document.getElementById('title').focus();
-  document.getElementById('search').addEventListener('input', render);
+  document.getElementById('search').addEventListener('input', renderOffers);
 
   init();
 })();
