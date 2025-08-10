@@ -1,6 +1,13 @@
-// LK logic with photo upload fallback, settings fixes, and no timezone in profile
+// LK logic with photo upload fallback, settings fixes, API persistence
 (() => {
-  const API = new URLSearchParams(location.search).get('api') || 'http://localhost:8000';
+  const urlApi = new URLSearchParams(location.search).get('api');
+  if (urlApi) localStorage.setItem('foody_api', urlApi);
+  const API = urlApi || localStorage.getItem('foody_api') || 'http://localhost:8000';
+
+  // keep API in onboarding link
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('a[href$="onboarding.html"]').forEach(a => a.href = `./onboarding.html?api=${encodeURIComponent(API)}`);
+  });
 
   const els = {
     restInfo: document.getElementById('restInfo'),
@@ -15,7 +22,7 @@
     resTable: document.getElementById('resTable')?.querySelector('tbody'),
     resFilter: document.getElementById('resFilter'), resRefresh: document.getElementById('resRefresh'),
     resEmpty: document.getElementById('resEmpty'), addFloating: document.getElementById('addFloating'),
-    toast: document.getElementById('toast'), profileBanner: document.getElementById('profileBanner'),
+    profileBanner: document.getElementById('profileBanner'),
     refreshBtn: document.getElementById('refreshBtn'), settingsBtn: document.getElementById('settingsBtn'),
     settingsModal: document.getElementById('settingsModal'), restSelect: document.getElementById('restSelect'),
     newRestName: document.getElementById('newRestName'), createRestBtn: document.getElementById('createRestBtn'),
@@ -25,7 +32,12 @@
   let restaurant = null;
   try { restaurant = JSON.parse(localStorage.getItem('foody_restaurant')||'null'); } catch {}
 
-  const toast = (msg) => { els.toast.textContent = msg; els.toast.classList.remove('hidden'); setTimeout(()=>els.toast.classList.add('hidden'), 2000); };
+  const toast = (msg) => {
+    let node = document.getElementById('toast');
+    if (!node) { node = document.createElement('div'); node.id='toast'; node.className='toast'; document.body.appendChild(node); }
+    node.textContent = msg; node.classList.remove('hidden');
+    setTimeout(()=>node.classList.add('hidden'), 2200);
+  };
   const fmtDT = (s) => { try { return new Date(s).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s||'—'; } };
   const money = (v) => new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
 
@@ -35,14 +47,6 @@
     const r = await fetch(`${API}/whoami?telegram_id=${u.id}`);
     if (!r.ok) throw 0;
     return r.json();
-  }
-
-  async function autoLink(){
-    try{
-      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      if(!u || !restaurant?.id) return;
-      await fetch(`${API}/set_active_restaurant?telegram_id=${u.id}&restaurant_id=${restaurant.id}`, { method:'POST' });
-    }catch{}
   }
 
   async function checkProfileAndStatus(){
@@ -101,7 +105,6 @@
     }catch{ toast('Ошибка сети'); }
   }
 
-  // Edit modal
   const modal = document.getElementById('editModal');
   const ef = document.getElementById('editForm');
   const eId = document.getElementById('editId');
@@ -160,8 +163,7 @@
       const d = await r.json();
       if(d.url) return d.url;
     }catch{}
-    toast('Фото не загружено');
-    return null;
+    toast('Фото не загружено'); return null;
   }
 
   els.createForm.addEventListener('submit', async (ev) => {
@@ -207,7 +209,7 @@
     }
   }
 
-  // ---------- Settings modal ----------
+  // Settings modal
   async function openSettings(){
     await populateRestList();
     els.settingsModal.showModal();
@@ -215,11 +217,10 @@
   async function populateRestList(){
     const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
     els.restSelect.innerHTML = '';
-    let addedActive = false;
     if (restaurant?.id) {
       const opt = document.createElement('option');
       opt.value = restaurant.id; opt.textContent = `${restaurant.name} (id ${restaurant.id})`;
-      opt.selected = true; els.restSelect.appendChild(opt); addedActive = True;
+      opt.selected = true; els.restSelect.appendChild(opt);
     }
     if(!u) return;
     try {
@@ -235,6 +236,8 @@
       }
     } catch {}
   }
+
+  els.createRestBtn?.classList.add('primary');
 
   els.createRestBtn?.addEventListener('click', async () => {
     const name = (els.newRestName.value || '').trim() || 'Мой ресторан';
@@ -272,9 +275,7 @@
     } catch { toast('Ошибка сети'); }
   });
 
-  els.settingsBtn.addEventListener('click', openSettings);
-
-  // ---------- Auth ----------
+  // Auth
   els.logoutBtn.addEventListener('click', () => { localStorage.removeItem('foody_restaurant'); location.reload(); });
   els.loginBtn.addEventListener('click', async () => {
     try {
@@ -298,17 +299,18 @@
       await reloadAll();
     }catch{
       els.restInfo.textContent = 'Нет привязки к ресторану. Откройте «Настройки», создайте или выберите ресторан.';
-      els.loginBtn.style.display = 'none';
-      openSettings();
+      els.loginBtn.style.display = 'inline-flex';
     }
   }
 
+  // Wire buttons
   document.getElementById('refreshBtn')?.addEventListener('click', ()=>reloadAll());
   document.getElementById('search')?.addEventListener('input', ()=>loadOffers());
   document.getElementById('reloadOffers')?.addEventListener('click', ()=>loadOffers());
   document.getElementById('resFilter')?.addEventListener('change', ()=>loadReservations());
   document.getElementById('resRefresh')?.addEventListener('click', ()=>loadReservations());
   document.getElementById('addFloating')?.addEventListener('click', ()=>{ window.scrollTo({top:0, behavior:'smooth'}); document.getElementById('title').focus(); });
+  document.getElementById('settingsBtn')?.addEventListener('click', openSettings);
 
   init();
 })();

@@ -49,11 +49,11 @@
           <div class="field"><label>Название*</label><input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня"/></div>
           <div class="field"><label>Описание</label><textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea></div>
           <div class="row">
-            <div class="field"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199"/></div>
-            <div class="field"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5"/></div>
+            <div class="field" style="flex:1"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199"/></div>
+            <div class="field" style="width:140px"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5"/></div>
           </div>
-          <div class="field"><label>Действует до</label><input id="expires" type="datetime-local"/><div class="hint">Локальное время.</div></div>
-          <div class="field"><label>Фото (опционально)</label><input id="photo" type="file" accept="image/*"/><div class="hint">PNG/JPG до 4 МБ</div></div>
+          <div class="field"><label>Действует до</label><input id="expires" type="datetime-local"/><div class="hint muted small">Локальное время.</div></div>
+          <div class="field"><label>Фото (опционально)</label><input id="photo" type="file" accept="image/*"/><div class="hint muted small">PNG/JPG до 4 МБ</div></div>
           <div class="actions"><button class="btn primary" type="submit">Сохранить</button><button class="btn ghost" type="reset">Сбросить</button></div>
         </form>
       </div>
@@ -98,7 +98,7 @@
         <div class="empty-title">Броней пока нет</div>
       </div>
       <div class="table-wrap">
-        <table class="table" id="resTable">
+        <table class="table" id="resTable" style="width:100%">
           <thead><tr><th>Код</th><th>Оффер</th><th>Покупатель</th><th>Статус</th><th>Действует до</th><th>Создано</th></tr></thead>
           <tbody></tbody>
         </table>
@@ -120,7 +120,7 @@
         <label>Создать новый ресторан</label>
         <div class="row">
           <input id="newRestName" class="input" placeholder="Название…"/>
-          <button id="createRestBtn" class="btn">Создать</button>
+          <button id="createRestBtn" class="btn primary">Создать</button>
         </div>
       </div>
       <div class="actions end">

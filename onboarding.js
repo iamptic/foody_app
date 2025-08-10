@@ -1,5 +1,5 @@
 (() => {
-  const API = new URLSearchParams(location.search).get('api') || 'http://localhost:8000';
+  const API = new URLSearchParams(location.search).get('api') || localStorage.getItem('foody_api') || 'http://localhost:8000';
   const els = {
     status: document.getElementById('status'),
     form: document.getElementById('profForm'),
