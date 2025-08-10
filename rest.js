@@ -1,4 +1,4 @@
-// LK logic: fix quick registration loop, add settings modal (switch/create), and keep profile banner
+// LK logic with photo upload fallback, settings fixes, and no timezone in profile
 (() => {
   const API = new URLSearchParams(location.search).get('api') || 'http://localhost:8000';
 
@@ -22,29 +22,12 @@
     saveSettings: document.getElementById('saveSettings'),
   };
 
-  const LOGOUT_KEY = 'foody_logged_out';
-  const loggedOut = () => sessionStorage.getItem(LOGOUT_KEY) === '1';
-  const setLoggedOut = (v) => v ? sessionStorage.setItem(LOGOUT_KEY, '1') : sessionStorage.removeItem(LOGOUT_KEY);
-
   let restaurant = null;
   try { restaurant = JSON.parse(localStorage.getItem('foody_restaurant')||'null'); } catch {}
 
   const toast = (msg) => { els.toast.textContent = msg; els.toast.classList.remove('hidden'); setTimeout(()=>els.toast.classList.add('hidden'), 2000); };
   const fmtDT = (s) => { try { return new Date(s).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s||'—'; } };
   const money = (v) => new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
-
-  const waitTgUser = () => new Promise((resolve) => {
-    let tries=0; const t=setInterval(()=>{ tries++; const u=window.Telegram?.WebApp?.initDataUnsafe?.user; if(u||tries>10){clearInterval(t); resolve(u||null);} },100);
-  });
-
-  async function autoLinkIfPossible(){
-    try{
-      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      if(!u || !restaurant?.id) return;
-      await fetch(`${API}/link_telegram_auto`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ telegram_id: String(u.id), restaurant_id: restaurant.id }) });
-    }catch(e){}
-  }
 
   async function whoami(){
     const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
@@ -54,14 +37,12 @@
     return r.json();
   }
 
-  function showLoggedUI(){
-    els.logoutBtn.style.display = 'inline-flex';
-    els.loginBtn.style.display = 'none';
-  }
-  function showLoggedOutUI(){
-    els.restInfo.textContent = 'Откройте Mini App из бота для авторизации.';
-    els.logoutBtn.style.display = 'none';
-    els.loginBtn.style.display = 'inline-flex';
+  async function autoLink(){
+    try{
+      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      if(!u || !restaurant?.id) return;
+      await fetch(`${API}/set_active_restaurant?telegram_id=${u.id}&restaurant_id=${restaurant.id}`, { method:'POST' });
+    }catch{}
   }
 
   async function checkProfileAndStatus(){
@@ -152,28 +133,41 @@
     };
     try{
       const r = await fetch(`${API}/offers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if(r.ok){ toast('Сохранено'); modal.close(); loadOffers(); } else toast('Не удалось сохранить');
+      if(r.ok){ toast('Сохранено'); modal.close(); loadOffers(); } else { const t = await r.text(); toast('Ошибка: ' + t); }
     }catch{ toast('Ошибка сети'); }
   });
 
-  async function uploadPhotoIfAny(){
+  async function uploadPhoto(){
     const f = els.photo?.files?.[0];
     if(!f) return null;
+    // try s3 presign first
     try{
       const init = await fetch(`${API}/upload_init`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ filename: f.name, content_type: f.type || 'image/jpeg' })
-      }).then(r=>r.json());
-      await fetch(init.upload_url, { method:'PUT', headers: init.headers || {'Content-Type': f.type || 'image/jpeg'}, body: f });
-      return init.public_url;
-    }catch{ toast('Загрузка фото не настроена'); return null; }
+      });
+      if (init.ok){
+        const initData = await init.json();
+        await fetch(initData.upload_url, { method:'PUT', headers:initData.headers || {'Content-Type': f.type || 'image/jpeg'}, body:f });
+        return initData.public_url;
+      }
+    }catch{}
+    // fallback /upload
+    try{
+      const fd = new FormData(); fd.append('file', f);
+      const r = await fetch(`${API}/upload`, { method:'POST', body: fd });
+      const d = await r.json();
+      if(d.url) return d.url;
+    }catch{}
+    toast('Фото не загружено');
+    return null;
   }
 
   els.createForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if(!restaurant?.id) return toast('Нет ресторана');
-    const photo_url = await uploadPhotoIfAny();
+    const photo_url = await uploadPhoto();
     const payload = {
       restaurant_id: restaurant.id,
       title: els.title.value.trim(),
@@ -213,7 +207,7 @@
     }
   }
 
-  // ---------- Settings modal: switch/create inside LK ----------
+  // ---------- Settings modal ----------
   async function openSettings(){
     await populateRestList();
     els.settingsModal.showModal();
@@ -221,23 +215,25 @@
   async function populateRestList(){
     const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
     els.restSelect.innerHTML = '';
-    if(!u){ els.restSelect.innerHTML = '<option>Откройте из Telegram</option>'; return; }
+    let addedActive = false;
+    if (restaurant?.id) {
+      const opt = document.createElement('option');
+      opt.value = restaurant.id; opt.textContent = `${restaurant.name} (id ${restaurant.id})`;
+      opt.selected = true; els.restSelect.appendChild(opt); addedActive = True;
+    }
+    if(!u) return;
     try {
       const r = await fetch(`${API}/my_restaurants?telegram_id=${u.id}`);
       const list = await r.json();
-      if(!list.length){
-        els.restSelect.innerHTML = '<option value="">Нет ресторанов</option>';
-      } else {
-        for(const x of list){
+      for(const x of list){
+        const exists = Array.from(els.restSelect.options).some(o => Number(o.value)===x.id);
+        if (!exists) {
           const opt = document.createElement('option');
           opt.value = x.id; opt.textContent = `${x.restaurant_name} (id ${x.id})`;
-          if (restaurant?.id === x.id) opt.selected = true;
           els.restSelect.appendChild(opt);
         }
       }
-    } catch {
-      els.restSelect.innerHTML = '<option>Ошибка загрузки</option>';
-    }
+    } catch {}
   }
 
   els.createRestBtn?.addEventListener('click', async () => {
@@ -251,17 +247,13 @@
       });
       const data = await r.json();
       if (r.ok) {
-        // сохраняем локально и линкуем
         restaurant = { id: data.restaurant_id, name: data.restaurant_name };
         localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
         await fetch(`${API}/set_active_restaurant?telegram_id=${u.id}&restaurant_id=${restaurant.id}`, { method:'POST' });
-        await autoLinkIfPossible();
-        await populateRestList();
         toast('Создан и выбран активным');
+        els.settingsModal.close();
         await reloadAll();
-      } else {
-        toast('Не удалось создать');
-      }
+      } else { toast('Не удалось создать'); }
     } catch { toast('Ошибка сети'); }
   });
 
@@ -271,9 +263,9 @@
     if (!u || !rid) { els.settingsModal.close(); return; }
     try {
       await fetch(`${API}/set_active_restaurant?telegram_id=${u.id}&restaurant_id=${rid}`, { method:'POST' });
-      restaurant = { id: rid, name: els.restSelect.options[els.restSelect.selectedIndex].textContent.split(' (id')[0] };
+      const label = els.restSelect.options[els.restSelect.selectedIndex].textContent;
+      restaurant = { id: rid, name: label.split(' (id')[0] };
       localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
-      await autoLinkIfPossible();
       toast('Активный ресторан обновлён');
       els.settingsModal.close();
       await reloadAll();
@@ -282,26 +274,15 @@
 
   els.settingsBtn.addEventListener('click', openSettings);
 
-  // ---------- Auth controls ----------
-  els.logoutBtn.addEventListener('click', () => {
-    localStorage.removeItem('foody_restaurant');
-    setLoggedOut(true);
-    try { if (window.Telegram && Telegram.WebApp) { Telegram.WebApp.close(); return; } } catch {}
-    location.reload();
-  });
+  // ---------- Auth ----------
+  els.logoutBtn.addEventListener('click', () => { localStorage.removeItem('foody_restaurant'); location.reload(); });
   els.loginBtn.addEventListener('click', async () => {
-    setLoggedOut(false);
     try {
       const d = await whoami();
       restaurant = { id: d.restaurant_id, name: d.restaurant_name };
       localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
-      await autoLinkIfPossible();
-      showLoggedUI();
       await reloadAll();
-    } catch {
-      // quick inline registration fallback
-      openSettings();
-    }
+    } catch { openSettings(); }
   });
 
   async function reloadAll(){
@@ -309,24 +290,19 @@
   }
 
   async function init(){
-    if (loggedOut()) { showLoggedOutUI(); return; }
-    if (restaurant?.id){ await autoLinkIfPossible(); showLoggedUI(); await reloadAll(); return; }
+    if (restaurant?.id){ await reloadAll(); return; }
     try{
       const d = await whoami();
       restaurant = { id: d.restaurant_id, name: d.restaurant_name };
       localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
-      await autoLinkIfPossible();
-      showLoggedUI();
       await reloadAll();
     }catch{
-      // show inline create inside settings
-      document.getElementById('restInfo').textContent = 'Нет привязки к ресторану. Создайте или выберите в «Настройках».';
-      document.getElementById('loginBtn').style.display = 'none';
+      els.restInfo.textContent = 'Нет привязки к ресторану. Откройте «Настройки», создайте или выберите ресторан.';
+      els.loginBtn.style.display = 'none';
       openSettings();
     }
   }
 
-  // Buttons
   document.getElementById('refreshBtn')?.addEventListener('click', ()=>reloadAll());
   document.getElementById('search')?.addEventListener('input', ()=>loadOffers());
   document.getElementById('reloadOffers')?.addEventListener('click', ()=>loadOffers());

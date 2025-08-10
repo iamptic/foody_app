@@ -1,1 +1,28 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Foody — Профиль ресторана</title><link rel="stylesheet" href="./styles.css"/><script src="https://telegram.org/js/telegram-web-app.js"></script></head><body class="light"><main class="container"><section class="card"><h2>Профиль ресторана</h2><div id="status" class="muted">Проверяем…</div><form id="profForm" class="form" style="margin-top:12px"><div class="field"><label>Название</label><input id="name" maxlength="120" placeholder="Как вас видят покупатели"/></div><div class="field"><label>Телефон</label><input id="phone" placeholder="+7 xxx xxx xx xx"/></div><div class="field"><label>Адрес</label><input id="address" placeholder="Город, улица, дом"/></div><div class="field"><label>Город</label><input id="city" placeholder="Например, Томск"/></div><div class="field"><label>Часовой пояс</label><input id="tz" placeholder="Напр., UTC+7"/></div><div class="field"><label>Комментарий к выдаче</label><textarea id="note" rows="3" placeholder="Где забирать, ориентир, как позвонить"></textarea></div><div class="actions"><button class="btn primary" type="submit">Сохранить</button></div></form></section></main><div id="toast" class="toast hidden"></div><script src="./onboarding.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Foody — Профиль ресторана</title>
+  <link rel="stylesheet" href="./styles.css"/>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body class="light">
+  <main class="container">
+    <section class="card">
+      <h2>Профиль ресторана</h2>
+      <div id="status" class="muted">Проверяем…</div>
+      <form id="profForm" class="form" style="margin-top:12px">
+        <div class="field"><label>Название</label><input id="name" maxlength="120" placeholder="Как вас видят покупатели"/></div>
+        <div class="field"><label>Телефон</label><input id="phone" placeholder="+7 xxx xxx xx xx"/></div>
+        <div class="field"><label>Адрес</label><input id="address" placeholder="Улица, дом"/></div>
+        <div class="field"><label>Город</label><select id="city"></select></div>
+        <div class="field"><label>Комментарий к выдаче</label><textarea id="note" rows="3" placeholder="Где забирать, ориентир, как позвонить"></textarea></div>
+        <div class="actions"><button class="btn primary" type="submit">Сохранить</button></div>
+      </form>
+    </section>
+  </main>
+  <div id="toast" class="toast hidden"></div>
+  <script src="./onboarding.js"></script>
+</body>
+</html>
