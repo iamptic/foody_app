@@ -1,8 +1,17 @@
-// Foody LK — create restaurant robust, CORS diagnostics, improved tips
-(() => {
-  const urlApi = new URLSearchParams(location.search).get('api');
-  if (urlApi) localStorage.setItem('foody_api', urlApi);
-  const API = urlApi || localStorage.getItem('foody_api') || 'http://localhost:8000';
+const DEFAULT_API = 'https://foodyback-production.up.railway.app';
+
+const urlApi = new URLSearchParams(location.search).get('api');
+
+// Если пришёл api=... в URL — сохраняем
+if (urlApi) localStorage.setItem('foody_api', urlApi);
+
+// Если открыто ВНУТРИ Telegram и api ещё не задан — ставим дефолт
+if (window.Telegram?.WebApp && !urlApi && !localStorage.getItem('foody_api')) {
+  localStorage.setItem('foody_api', DEFAULT_API);
+}
+
+// Итоговый API
+const API = urlApi || localStorage.getItem('foody_api') || DEFAULT_API;
 
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('a[href$="onboarding.html"]').forEach(a => a.href = `./onboarding.html?api=${encodeURIComponent(API)}`);
