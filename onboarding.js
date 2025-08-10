@@ -1,6 +1,5 @@
 (() => {
-  const urlp = new URLSearchParams(location.search);
-  const API = urlp.get('api') || 'http://localhost:8000';
+  const API = new URLSearchParams(location.search).get('api') || 'http://localhost:8000';
   const els = {
     status: document.getElementById('status'),
     form: document.getElementById('profForm'),
@@ -18,19 +17,9 @@
     try { return JSON.parse(localStorage.getItem('foody_restaurant')||'null')?.id || null; } catch { return null; }
   }
 
-  async function autoLink(rid){
-    try {
-      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      if (!u || !rid) return;
-      await fetch(`${API}/link_telegram_auto`, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ telegram_id: String(u.id), restaurant_id: rid }) });
-    } catch {}
-  }
-
   async function load(){
     const rid = getRid();
     if(!rid){ els.status.textContent = 'Нет активного ресторана. Откройте ЛК из бота.'; return; }
-    await autoLink(rid);
     try {
       const r = await fetch(`${API}/restaurant/${rid}`);
       if (!r.ok) throw 0;
@@ -39,7 +28,7 @@
       els.phone.value = p.phone || '';
       els.address.value = p.address || '';
       els.city.value = p.city || '';
-      els.tz.value = p.timezone || 'UTC+7';
+      els.tz.value = p.timezone || '';
       els.note.value = p.pickup_note || '';
       els.status.textContent = `Редактирование профиля для ID ${rid}`;
     } catch {
