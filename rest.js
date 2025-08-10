@@ -1,4 +1,4 @@
-// Logout fix + close Mini App on logout
+// Restaurant LK (auto-link + logout-close + minimal offers list placeholder)
 (() => {
   const urlp = new URLSearchParams(location.search);
   const API = urlp.get('api') || 'http://localhost:8000';
@@ -7,6 +7,8 @@
     restInfo: document.getElementById('restInfo'),
     logoutBtn: document.getElementById('logoutBtn'),
     loginBtn: document.getElementById('loginBtn'),
+    offers: document.getElementById('offers'),
+    empty: document.getElementById('empty'),
     toast: document.getElementById('toast'),
   };
 
@@ -14,85 +16,75 @@
   const loggedOut = () => sessionStorage.getItem(LOGOUT_KEY) === '1';
   const setLoggedOut = (v) => v ? sessionStorage.setItem(LOGOUT_KEY, '1') : sessionStorage.removeItem(LOGOUT_KEY);
 
-  const toast = (msg) => { els.toast.textContent = msg; els.toast.style.display='block'; setTimeout(()=> els.toast.style.display='none', 2200); };
-
   let restaurant = null;
   try { restaurant = JSON.parse(localStorage.getItem('foody_restaurant') || 'null'); } catch {}
 
+  const toast = (msg) => { els.toast.textContent = msg; els.toast.classList.remove('hidden'); setTimeout(()=> els.toast.classList.add('hidden'), 2200); };
+
   const showLoggedUI = () => {
     els.restInfo.textContent = `Вы вошли как: ${restaurant.name} (id ${restaurant.id})`;
-    if (els.logoutBtn) els.logoutBtn.style.display = 'inline-flex';
-    if (els.loginBtn) els.loginBtn.style.display = 'none';
+    els.logoutBtn.style.display = 'inline-flex';
+    els.loginBtn.style.display = 'none';
+  };
+  const showLoggedOutUI = () => {
+    els.restInfo.textContent = 'Вы вышли. Нажмите «Войти» для авторизации через Telegram.';
+    els.logoutBtn.style.display = 'none';
+    els.loginBtn.style.display = 'inline-flex';
   };
 
-  const showLoggedOutUI = () => {
-    els.restInfo.textContent = 'Вы вышли. Нажмите «Войти», чтобы авторизоваться через Telegram.';
-    if (els.logoutBtn) els.logoutBtn.style.display = 'none';
-    if (els.loginBtn) els.loginBtn.style.display = 'inline-flex';
-  };
+  async function autoLinkIfPossible(){
+    try{
+      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      if(!u || !restaurant?.id) return;
+      await fetch(`${API}/link_telegram_auto`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ telegram_id: String(u.id), restaurant_id: restaurant.id })
+      });
+    }catch(e){}
+  }
 
   const waitTgUser = () => new Promise((resolve) => {
     let tries = 0;
-    const timer = setInterval(() => {
+    const t = setInterval(() => {
       tries++;
       const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      if (u || tries > 10) { clearInterval(timer); resolve(u || null); }
+      if (u || tries > 10) { clearInterval(t); resolve(u || null); }
     }, 100);
   });
 
-  const tryTelegramLogin = async () => {
+  async function tryTelegramLogin(){
     if (loggedOut()) return false;
     const u = await waitTgUser();
     if (!u) return false;
-    try {
+    try{
       const r = await fetch(`${API}/whoami?telegram_id=${u.id}`);
       if (!r.ok) return false;
       const data = await r.json();
       restaurant = { id: data.restaurant_id, name: data.restaurant_name };
       localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
+      await autoLinkIfPossible();
       showLoggedUI();
       return true;
-    } catch { return false; }
-  };
+    }catch{return false;}
+  }
 
-  els.logoutBtn?.addEventListener('click', () => {
-    // Clear local session and set "logged out" flag for this Mini App session
-    localStorage.removeItem('foody_restaurant');
-    setLoggedOut(true);
-
-    // If inside Telegram Mini App — close the webview and return to chat
-    try {
-      if (window.Telegram && Telegram.WebApp) {
-        Telegram.WebApp.close();
-        return;
-      }
-    } catch {}
-
-    // Fallback for browser: just reload to show logged-out UI
-    location.reload();
-  });
-
-  els.loginBtn?.addEventListener('click', () => {
-    setLoggedOut(false);
-    location.reload();
-  });
-
-  const init = async () => {
-    if (loggedOut()) {
-      localStorage.removeItem('foody_restaurant');
-      showLoggedOutUI();
-      return;
-    }
-    if (restaurant?.id) {
-      showLoggedUI();
-      return;
-    }
+  async function init(){
+    if (loggedOut()) { localStorage.removeItem('foody_restaurant'); showLoggedOutUI(); return; }
+    if (restaurant?.id){ await autoLinkIfPossible(); showLoggedUI(); return; }
     const ok = await tryTelegramLogin();
     if (ok) return;
+    els.restInfo.textContent = 'Сначала активируйте аккаунт по ссылке из бота или откройте Mini App из бота.';
+    els.loginBtn.style.display = 'inline-flex';
+  }
 
-    els.restInfo.textContent = 'Сначала активируйте аккаунт по ссылке из бота или привяжите Telegram.';
-    if (els.loginBtn) els.loginBtn.style.display = 'inline-flex';
-  };
+  els.logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('foody_restaurant');
+    setLoggedOut(true);
+    try { if (window.Telegram && Telegram.WebApp) { Telegram.WebApp.close(); return; } } catch {}
+    location.reload();
+  });
+  els.loginBtn.addEventListener('click', () => { setLoggedOut(false); location.reload(); });
 
   init();
 })();

@@ -1,1 +1,24 @@
-(()=>{const e=new URLSearchParams(location.search),t=e.get("api")||"http://localhost:8000",n={form:document.getElementById("form"),name:document.getElementById("name"),phone:document.getElementById("phone"),tz:document.getElementById("tz"),address:document.getElementById("address"),note:document.getElementById("note"),toast:document.getElementById("toast")},o=e=>{n.toast.textContent=e,n.toast.style.display="block",setTimeout(()=>n.toast.style.display="none",2e3)};const a=()=>window.Telegram?.WebApp?.initDataUnsafe?.user?.id,r=async()=>{const e=a();if(!e)return o("Нет Telegram контекста");try{const a=await fetch(`${t}/me_by_telegram?telegram_id=${e}`);if(!a.ok)return;const r=await a.json();n.name.value=r.restaurant_name||"",n.phone.value=r.phone||"",n.tz.value=r.timezone||"Asia/Tomsk",n.address.value=r.address||"",n.note.value=r.pickup_note||"",n.form.dataset.rid=r.id}catch{}};n.form.addEventListener("submit",async e=>{e.preventDefault();const r=a();if(!r)return o("Нет Telegram контекста");const s=n.form.dataset.rid;if(!s)return o("Нет ID ресторана");const d={phone:n.phone.value.trim(),address:n.address.value.trim(),timezone:n.tz.value,pickup_note:n.note.value.trim()};try{const e=await fetch(`${t}/restaurant/${s}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});e.ok?o("Сохранено ✅"):o("Ошибка сохранения")}catch{o("Ошибка сети")}}),r();})();
+(() => {
+  const urlp = new URLSearchParams(location.search);
+  const API = urlp.get('api') || 'http://localhost:8000';
+  const status = document.getElementById('status');
+
+  async function autoLinkOnOnboarding(rid){
+    try{
+      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      if(!u || !rid) return;
+      await fetch(`${API}/link_telegram_auto`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ telegram_id: String(u.id), restaurant_id: rid }) });
+    }catch(e){}
+  }
+
+  function getRid(){
+    try { return JSON.parse(localStorage.getItem('foody_restaurant')||'null')?.id || null; } catch { return null; }
+  }
+
+  (async () => {
+    const rid = getRid();
+    await autoLinkOnOnboarding(rid);
+    status.textContent = rid ? `Ресторан ID ${rid} привязан к вашему Telegram.` : 'Не найден активный ресторан.';
+  })();
+})();
