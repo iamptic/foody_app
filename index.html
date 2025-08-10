@@ -52,7 +52,7 @@
             <div class="field" style="width:140px"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5"/></div>
           </div>
           <div class="field"><label>Действует до</label><input id="expires" type="datetime-local"/><div class="hint muted small">Локальное время.</div></div>
-          <div class="field"><label>Фото (опционально)</label><input id="photo" type="file" accept="image/*"/><div class="hint muted small">PNG/JPG до 4 МБ</div></div>
+          <div class="field"><label>Фото (опционально)</label><input id="photo" type="file" accept="image/*"/><div class="hint muted small">PNG/JPG до 6 МБ</div></div>
           <div class="actions"><button class="btn primary" type="submit">Сохранить</button><button class="btn ghost" type="reset">Сбросить</button></div>
         </form>
       </div>
@@ -67,6 +67,7 @@
         <h3>Мои предложения</h3>
         <div class="filters">
           <input id="search" class="input" placeholder="Поиск по названию…"/>
+          <button id="reloadOffers" class="btn ghost">Обновить</button>
         </div>
       </div>
       <div id="empty" class="empty hidden">
@@ -88,6 +89,7 @@
             <option value="expired">Истекшие</option>
             <option value="canceled">Отменённые</option>
           </select>
+          <button id="resRefresh" class="btn ghost">Обновить</button>
         </div>
       </div>
       <div id="resEmpty" class="empty hidden">
@@ -105,7 +107,7 @@
 
   <footer class="footer"><button id="addFloating" class="fab">＋ Добавить</button></footer>
 
-  <!-- Настройки -->
+  <!-- Настройки в ЛК -->
   <dialog id="settingsModal" class="modal">
     <div class="modal-card">
       <h3>Настройки</h3>
@@ -138,7 +140,7 @@
         <div class="field"><label>Количество</label><input id="editQty" type="number" step="1" min="0"/></div>
       </div>
       <div class="field"><label>Действует до</label><input id="editExpires" type="datetime-local"/></div>
-      <div class="field"><label>Новое фото</label><input id="editPhoto" type="file" accept="image/*"/></div>
+      <div class="field"><label>Изменить фото</label><input id="editPhoto" type="file" accept="image/*"/></div>
       <div class="actions end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" id="editSubmit" value="default">Сохранить</button></div>
     </form>
   </dialog>
