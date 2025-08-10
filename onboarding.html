@@ -1,1 +1,46 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Foody — Онбординг ресторана</title><link rel="stylesheet" href="./styles.css"/><script src="https://telegram.org/js/telegram-web-app.js"></script></head><body class="light"><main class="container"><h2>Онбординг ресторана</h2><p>Заполните профиль и сохраните изменения.</p><div id="status" class="muted">Проверяем…</div></main><script src="./onboarding.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Foody — Профиль ресторана</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body class="light">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🧾</div>
+      <div>
+        <div class="name">Foody</div>
+        <div class="subtitle">Профиль ресторана</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <a href="./index.html" id="backBtn" class="btn ghost">Назад</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h3>Контакты и выдача</h3>
+      <form id="profForm" class="form">
+        <div class="row">
+          <div class="field"><label>Телефон*</label><input id="phone" placeholder="+7 999 000-00-00" required /></div>
+          <div class="field"><label>Часовой пояс</label><input id="tz" placeholder="Asia/Tomsk или UTC+7" /></div>
+        </div>
+        <div class="field"><label>Адрес выдачи*</label><input id="addr" placeholder="г. Томск, ул. ..." required /></div>
+        <div class="field"><label>Памятка курьеру/клиенту</label><textarea id="note" rows="3" placeholder="Как пройти, код домофона, окно выдачи…"></textarea></div>
+        <div class="field"><label>E-mail (уведомления)</label><input id="email" type="email" placeholder="owner@example.com" /></div>
+        <div class="actions">
+          <button class="btn primary" type="submit">Сохранить</button>
+          <button class="btn ghost" type="reset">Сбросить</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="./onboarding.js"></script>
+</body>
+</html>
