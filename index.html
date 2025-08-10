@@ -18,7 +18,6 @@
     </div>
     <div class="top-actions">
       <button id="settingsBtn" class="btn ghost">Настройки</button>
-      <button id="refreshBtn" class="btn ghost">Обновить</button>
       <button id="logoutBtn" class="btn ghost">Выйти</button>
     </div>
   </header>
@@ -68,7 +67,6 @@
         <h3>Мои предложения</h3>
         <div class="filters">
           <input id="search" class="input" placeholder="Поиск по названию…"/>
-          <button id="reloadOffers" class="btn ghost">Обновить</button>
         </div>
       </div>
       <div id="empty" class="empty hidden">
@@ -90,7 +88,6 @@
             <option value="expired">Истекшие</option>
             <option value="canceled">Отменённые</option>
           </select>
-          <button id="resRefresh" class="btn ghost">Обновить</button>
         </div>
       </div>
       <div id="resEmpty" class="empty hidden">
@@ -108,7 +105,7 @@
 
   <footer class="footer"><button id="addFloating" class="fab">＋ Добавить</button></footer>
 
-  <!-- Настройки в ЛК -->
+  <!-- Настройки -->
   <dialog id="settingsModal" class="modal">
     <div class="modal-card">
       <h3>Настройки</h3>
@@ -141,6 +138,7 @@
         <div class="field"><label>Количество</label><input id="editQty" type="number" step="1" min="0"/></div>
       </div>
       <div class="field"><label>Действует до</label><input id="editExpires" type="datetime-local"/></div>
+      <div class="field"><label>Новое фото</label><input id="editPhoto" type="file" accept="image/*"/></div>
       <div class="actions end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" id="editSubmit" value="default">Сохранить</button></div>
     </form>
   </dialog>
