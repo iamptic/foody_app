@@ -1,25 +1,32 @@
-// Patched rest.js: robust Mini App auto-login + gated logout visibility
+// Restaurant LK script with profile banner + presigned uploads + auto-login
 (() => {
   const urlp = new URLSearchParams(location.search);
   const API = urlp.get('api') || 'http://localhost:8000';
   const token = urlp.get('token');
-
   const saved = localStorage.getItem('foody_restaurant');
   let restaurant = saved ? JSON.parse(saved) : null;
 
   const els = {
     restInfo: document.getElementById('restInfo'),
+    offers: document.getElementById('offers'),
+    empty: document.getElementById('empty'),
+    refresh: document.getElementById('refreshBtn'),
+    addFloating: document.getElementById('addFloating'),
+    toast: document.getElementById('toast'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    resFilter: document.getElementById('resFilter'),
+    resRefresh: document.getElementById('resRefresh'),
+    resTable: document.getElementById('resTable')?.querySelector('tbody'),
+    resEmpty: document.getElementById('resEmpty'),
+    search: document.getElementById('search'),
+    profileBanner: document.getElementById('profileBanner'),
+    fillProfileBtn: document.getElementById('fillProfileBtn'),
     photo: document.getElementById('photo'),
     title: document.getElementById('title'),
     desc: document.getElementById('desc'),
     price: document.getElementById('price'),
     qty: document.getElementById('qty'),
     expires: document.getElementById('expires'),
-    offers: document.getElementById('offers'),
-    empty: document.getElementById('empty'),
-    refresh: document.getElementById('refreshBtn'),
-    addFloating: document.getElementById('addFloating'),
-    toast: document.getElementById('toast'),
     editModal: document.getElementById('editModal'),
     editId: document.getElementById('editId'),
     editPhoto: document.getElementById('editPhoto'),
@@ -28,12 +35,6 @@
     editPrice: document.getElementById('editPrice'),
     editQty: document.getElementById('editQty'),
     editExpires: document.getElementById('editExpires'),
-    resFilter: document.getElementById('resFilter'),
-    resRefresh: document.getElementById('resRefresh'),
-    resTable: document.getElementById('resTable')?.querySelector('tbody'),
-    resEmpty: document.getElementById('resEmpty'),
-    logoutBtn: document.getElementById('logoutBtn'),
-    search: document.getElementById('search'),
   };
 
   const toast = (msg) => { els.toast.textContent = msg; els.toast.style.display='block'; setTimeout(()=> els.toast.style.display='none', 2200); };
@@ -41,24 +42,34 @@
   const fmtDT = (s) => { try { return new Date(s).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s||'—'; } };
   const badge = (status) => `<span class="badge-status ${status}">${status}</span>`;
 
+  const uploadImage = async (file) => {
+    const initRes = await fetch(`${API}/upload_init`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ filename: file.name, content_type: file.type || 'image/jpeg' })
+    });
+    if (!initRes.ok) throw new Error('upload_init failed');
+    const initData = await initRes.json();
+    if (file.size > (initData.max_mb||4)*1024*1024) throw new Error('too_large');
+    const putRes = await fetch(initData.upload_url, { method:'PUT', headers: initData.headers||{'Content-Type': file.type||'image/jpeg'}, body: file });
+    if (!putRes.ok) throw new Error('put_failed');
+    return initData.public_url;
+  };
+
   const showLoggedUI = () => {
     els.restInfo.textContent = `Вы вошли как: ${restaurant.name} (id ${restaurant.id})`;
     const btn = document.getElementById('logoutBtn');
     if (btn) btn.style.display = 'inline-flex';
   };
 
-  const waitTgUser = () =>
-    new Promise((resolve) => {
-      let tries = 0;
-      const timer = setInterval(() => {
-        tries++;
-        const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
-        if (u || tries > 10) { // ~1s
-          clearInterval(timer);
-          resolve(u || null);
-        }
-      }, 100);
-    });
+  const waitTgUser = () => new Promise((resolve) => {
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries++;
+      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      if (u || tries > 10) { clearInterval(timer); resolve(u || null); }
+    }, 100);
+  });
 
   const tryTelegramLogin = async () => {
     const u = await waitTgUser();
@@ -70,9 +81,30 @@
       restaurant = { id: data.restaurant_id, name: data.restaurant_name };
       localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
       showLoggedUI();
-      await loadOffers(); await loadReservations();
+      await Promise.all([loadOffers(), loadReservations(), checkProfile()]);
       return true;
     } catch { return false; }
+  };
+
+  const checkProfile = async () => {
+    if (!restaurant) return;
+    try {
+      const r = await fetch(`${API}/restaurant/${restaurant.id}`);
+      if (!r.ok) return;
+      const prof = await r.json();
+      const incomplete = !prof.phone || !prof.address;
+      const href = `onboarding.html?api=${encodeURIComponent(API)}&from=lk`;
+      els.fillProfileBtn.setAttribute('href', href);
+      if (incomplete) {
+        els.profileBanner.classList.remove('hidden');
+        const inTG = !!(window.Telegram && Telegram.WebApp);
+        const seen = localStorage.getItem('foody_profile_prompted');
+        if (inTG && !seen) { localStorage.setItem('foody_profile_prompted', '1'); location.href = href; return; }
+      } else {
+        els.profileBanner.classList.add('hidden');
+        localStorage.setItem('foody_profile_prompted', '1');
+      }
+    } catch {}
   };
 
   const card = (o) => {
@@ -99,7 +131,7 @@
   let reservations = [];
 
   const renderOffers = () => {
-    const q = (els.search?.value || '').trim().toLowerCase();
+    const q = (document.getElementById('search')?.value || '').trim().toLowerCase();
     const arr = q ? allOffers.filter(o => o.title.toLowerCase().includes(q)) : allOffers;
     els.offers.innerHTML = '';
     if (!arr.length) els.empty.classList.remove('hidden'); else els.empty.classList.add('hidden');
@@ -129,42 +161,13 @@
     catch { toast('Не удалось загрузить брони'); }
   };
 
-  const init = async () => {
-    // 1) Первичная активация через токен
-    if (token) {
-      try {
-        const r = await fetch(`${API}/verify/${token}`);
-        const data = await r.json();
-        if (data.restaurant_id){
-          restaurant = { id: data.restaurant_id, name: data.restaurant_name };
-          localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
-          els.restInfo.textContent = `Аккаунт активирован: ${restaurant.name} (id ${restaurant.id})`;
-          const btn = document.getElementById('logoutBtn'); if (btn) btn.style.display='inline-flex';
-          await loadOffers(); await loadReservations(); return;
-        }
-      } catch {}
-    }
-    // 2) Обычный вход из браузера (localStorage)
-    if (restaurant?.id){
-      showLoggedUI();
-      await loadOffers(); await loadReservations(); return;
-    }
-    // 3) Telegram Mini App auto-login
-    const ok = await tryTelegramLogin();
-    if (ok) return;
-    // 4) Нет входа — просим активировать/привязать
-    els.restInfo.textContent = 'Сначала активируйте аккаунт по ссылке из бота или привяжите Telegram.';
-  };
-
   // Create
-  document.getElementById('createForm').addEventListener('submit', async (ev) => {
+  document.getElementById('createForm')?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!restaurant) return toast('Нет доступа: аккаунт не активирован');
-    const photoInput = els.photo;
     let photo_url = null;
-    if (photoInput.files?.[0]) {
-      try { photo_url = await uploadImage(photoInput.files[0]); } catch { return toast('Не удалось загрузить фото'); }
-    }
+    const f = els.photo.files?.[0];
+    if (f){ try { photo_url = await uploadImage(f); } catch { return toast('Не удалось загрузить фото'); } }
     const payload = {
       restaurant_id: restaurant.id,
       title: els.title.value.trim(),
@@ -194,10 +197,10 @@
       const iso = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
       els.editExpires.value = iso;
     } catch { els.editExpires.value = ''; }
-    document.getElementById('editModal').showModal();
+    els.editModal.showModal();
   };
 
-  document.getElementById('editForm').addEventListener('submit', async (ev) => {
+  document.getElementById('editForm')?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const id = Number(els.editId.value);
     const patch = {};
@@ -211,7 +214,7 @@
     try {
       const r = await fetch(`${API}/offers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(patch)});
       const data = await r.json();
-      if (data.offer_id){ toast('Обновлено ✅'); document.getElementById('editModal').close(); loadOffers(); }
+      if (data.offer_id){ toast('Обновлено ✅'); els.editModal.close(); loadOffers(); }
       else { toast('Ошибка: ' + JSON.stringify(data)); }
     } catch { toast('Ошибка сети'); }
   });
@@ -224,10 +227,34 @@
   };
 
   // Controls
-  els.refresh.onclick = () => { loadOffers(); loadReservations(); };
-  els.addFloating.onclick = () => els.title.focus();
-  els.search?.addEventListener('input', renderOffers);
-  els.logoutBtn.onclick = () => { localStorage.removeItem('foody_restaurant'); location.reload(); };
+  els.refresh?.addEventListener('click', () => { loadOffers(); loadReservations(); checkProfile(); });
+  els.addFloating?.addEventListener('click', () => els.title.focus());
+  document.getElementById('search')?.addEventListener('input', renderOffers);
+  els.logoutBtn?.addEventListener('click', () => { localStorage.removeItem('foody_restaurant'); location.reload(); });
+
+  const init = async () => {
+    if (token) {
+      try {
+        const r = await fetch(`${API}/verify/${token}`);
+        const data = await r.json();
+        if (data.restaurant_id){
+          restaurant = { id: data.restaurant_id, name: data.restaurant_name };
+          localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
+          showLoggedUI();
+          await Promise.all([loadOffers(), loadReservations(), checkProfile()]);
+          return;
+        }
+      } catch {}
+    }
+    if (restaurant?.id){
+      showLoggedUI();
+      await Promise.all([loadOffers(), loadReservations(), checkProfile()]);
+      return;
+    }
+    const ok = await tryTelegramLogin();
+    if (ok) return;
+    els.restInfo.textContent = 'Сначала активируйте аккаунт по ссылке из бота или привяжите Telegram.';
+  };
 
   init();
 })();
