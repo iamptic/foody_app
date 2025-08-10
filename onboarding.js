@@ -1,62 +1,69 @@
 (() => {
   const urlp = new URLSearchParams(location.search);
   const API = urlp.get('api') || 'http://localhost:8000';
-
   const els = {
-    phone: document.getElementById('phone'),
-    tz: document.getElementById('tz'),
-    addr: document.getElementById('addr'),
-    note: document.getElementById('note'),
-    email: document.getElementById('email'),
+    status: document.getElementById('status'),
     form: document.getElementById('profForm'),
+    name: document.getElementById('name'),
+    phone: document.getElementById('phone'),
+    address: document.getElementById('address'),
+    city: document.getElementById('city'),
+    tz: document.getElementById('tz'),
+    note: document.getElementById('note'),
     toast: document.getElementById('toast'),
   };
+  const toast = (m)=>{ els.toast.textContent=m; els.toast.classList.remove('hidden'); setTimeout(()=>els.toast.classList.add('hidden'),2000); };
 
-  let rid = null;
-  try { rid = JSON.parse(localStorage.getItem('foody_restaurant')||'null')?.id || null; } catch { rid = null; }
+  function getRid(){
+    try { return JSON.parse(localStorage.getItem('foody_restaurant')||'null')?.id || null; } catch { return null; }
+  }
 
-  const notify = (msg) => { els.toast.textContent = msg; els.toast.classList.remove('hidden'); setTimeout(()=> els.toast.classList.add('hidden'), 2200); };
-
-  async function autoLink(){
-    try{
+  async function autoLink(rid){
+    try {
       const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      if(!u || !rid) return;
-      await fetch(`${API}/link_telegram_auto`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ telegram_id: String(u.id), restaurant_id: rid }) });
-    }catch(e){}
+      if (!u || !rid) return;
+      await fetch(`${API}/link_telegram_auto`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ telegram_id: String(u.id), restaurant_id: rid }) });
+    } catch {}
   }
 
   async function load(){
-    if (!rid){ notify('Откройте ЛК из бота'); return; }
-    await autoLink();
-    try{
+    const rid = getRid();
+    if(!rid){ els.status.textContent = 'Нет активного ресторана. Откройте ЛК из бота.'; return; }
+    await autoLink(rid);
+    try {
       const r = await fetch(`${API}/restaurant/${rid}`);
       if (!r.ok) throw 0;
       const p = await r.json();
+      els.name.value = p.restaurant_name || '';
       els.phone.value = p.phone || '';
-      els.tz.value = p.timezone_name || 'UTC+7';
-      els.addr.value = p.address || '';
+      els.address.value = p.address || '';
+      els.city.value = p.city || '';
+      els.tz.value = p.timezone || 'UTC+7';
       els.note.value = p.pickup_note || '';
-      els.email.value = p.email || '';
-    }catch{}
+      els.status.textContent = `Редактирование профиля для ID ${rid}`;
+    } catch {
+      els.status.textContent = 'Сервер недоступен';
+    }
   }
 
   els.form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    if (!rid) return;
+    const rid = getRid();
+    if (!rid) return toast('Нет активного ресторана');
     const payload = {
-      phone: els.phone.value.trim(),
-      timezone_name: els.tz.value.trim() || null,
-      address: els.addr.value.trim(),
-      pickup_note: els.note.value.trim() || null,
-      email: els.email.value.trim() || null,
+      restaurant_name: els.name.value.trim() || undefined,
+      phone: els.phone.value.trim() || undefined,
+      address: els.address.value.trim() || undefined,
+      city: els.city.value.trim() || undefined,
+      timezone: els.tz.value.trim() || undefined,
+      pickup_note: els.note.value.trim() || undefined,
     };
-    try{
+    try {
       const r = await fetch(`${API}/restaurant/${rid}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if (!r.ok) throw 0;
-      notify('Сохранено');
-      // вернёмся в ЛК
-      setTimeout(()=> { location.href = `./index.html?api=${encodeURIComponent(API)}`; }, 400);
-    }catch{ notify('Ошибка сохранения'); }
+      if (r.ok) { toast('Сохранено'); }
+      else { toast('Не удалось сохранить'); }
+    } catch { toast('Ошибка сети'); }
   });
 
   load();

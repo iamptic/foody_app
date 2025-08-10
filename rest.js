@@ -1,4 +1,4 @@
-// Foody Restaurant LK with offer CRUD + profile banner + autolink + logout-close
+// Restaurant LK full logic with city, photo upload, profile banner, autolink
 (() => {
   const urlp = new URLSearchParams(location.search);
   const API = urlp.get('api') || 'http://localhost:8000';
@@ -7,9 +7,6 @@
     restInfo: document.getElementById('restInfo'),
     loginBtn: document.getElementById('loginBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
-    refreshBtn: document.getElementById('refreshBtn'),
-    profileBanner: document.getElementById('profileBanner'),
-    openOnboarding: document.getElementById('openOnboarding'),
     createForm: document.getElementById('createForm'),
     title: document.getElementById('title'),
     desc: document.getElementById('desc'),
@@ -19,16 +16,16 @@
     offers: document.getElementById('offers'),
     empty: document.getElementById('empty'),
     search: document.getElementById('search'),
+    reloadOffers: document.getElementById('reloadOffers'),
+    resTable: document.getElementById('resTable')?.querySelector('tbody'),
+    resFilter: document.getElementById('resFilter'),
+    resRefresh: document.getElementById('resRefresh'),
+    resEmpty: document.getElementById('resEmpty'),
     addFloating: document.getElementById('addFloating'),
-    editModal: document.getElementById('editModal'),
-    editForm: document.getElementById('editForm'),
-    editId: document.getElementById('editId'),
-    editTitle: document.getElementById('editTitle'),
-    editDesc: document.getElementById('editDesc'),
-    editPrice: document.getElementById('editPrice'),
-    editQty: document.getElementById('editQty'),
-    editExpires: document.getElementById('editExpires'),
     toast: document.getElementById('toast'),
+    profileBanner: document.getElementById('profileBanner'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    photo: document.getElementById('photo'),
   };
 
   const LOGOUT_KEY = 'foody_logged_out';
@@ -36,40 +33,24 @@
   const setLoggedOut = (v) => v ? sessionStorage.setItem(LOGOUT_KEY, '1') : sessionStorage.removeItem(LOGOUT_KEY);
 
   let restaurant = null;
-  try { restaurant = JSON.parse(localStorage.getItem('foody_restaurant') || 'null'); } catch {}
+  try { restaurant = JSON.parse(localStorage.getItem('foody_restaurant')||'null'); } catch {}
 
-  const notify = (msg) => { els.toast.textContent = msg; els.toast.classList.remove('hidden'); setTimeout(()=> els.toast.classList.add('hidden'), 2200); };
-
-  const waitTgUser = () => new Promise((resolve) => {
-    let tries = 0;
-    const t = setInterval(() => {
-      tries++;
-      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      if (u || tries > 15) { clearInterval(t); resolve(u || null); }
-    }, 100);
-  });
+  const toast = (msg) => { els.toast.textContent = msg; els.toast.classList.remove('hidden'); setTimeout(()=>els.toast.classList.add('hidden'), 2000); };
+  const fmtDT = (s) => { try { return new Date(s).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s||'—'; } };
+  const money = (v) => new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
 
   async function autoLinkIfPossible(){
     try{
       const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
       if(!u || !restaurant?.id) return;
-      await fetch(`${API}/link_telegram_auto`, {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ telegram_id: String(u.id), restaurant_id: restaurant.id })
-      });
+      await fetch(`${API}/link_telegram_auto`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ telegram_id: String(u.id), restaurant_id: restaurant.id }) });
     }catch(e){}
   }
 
-  function showLoggedUI(){
-    els.restInfo.textContent = `Вы вошли как: ${restaurant.name} (id ${restaurant.id})`;
-    els.loginBtn.style.display = 'none';
-    els.logoutBtn.style.display = 'inline-flex';
-  }
-  function showLoggedOutUI(){
-    els.restInfo.textContent = 'Вы вышли. Нажмите «Войти» для авторизации через Telegram.';
-    els.loginBtn.style.display = 'inline-flex';
-    els.logoutBtn.style.display = 'none';
-  }
+  const waitTgUser = () => new Promise((resolve) => {
+    let tries=0; const t=setInterval(()=>{ tries++; const u=window.Telegram?.WebApp?.initDataUnsafe?.user; if(u||tries>10){clearInterval(t); resolve(u||null);} },100);
+  });
 
   async function tryTelegramLogin(){
     if (loggedOut()) return false;
@@ -77,52 +58,66 @@
     if (!u) return false;
     try{
       const r = await fetch(`${API}/whoami?telegram_id=${u.id}`);
-      if (!r.ok) return false;
+      if(!r.ok) return false;
       const data = await r.json();
       restaurant = { id: data.restaurant_id, name: data.restaurant_name };
       localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
       await autoLinkIfPossible();
       showLoggedUI();
+      await reloadAll();
       return true;
     }catch{return false;}
   }
 
-  function isProfileComplete(profile){
-    return Boolean((profile?.phone || '').trim() && (profile?.address || '').trim());
+  function showLoggedUI(){
+    els.logoutBtn.style.display = 'inline-flex';
+    els.loginBtn.style.display = 'none';
+  }
+  function showLoggedOutUI(){
+    els.restInfo.textContent = 'Откройте Mini App из бота для авторизации.';
+    els.logoutBtn.style.display = 'none';
+    els.loginBtn.style.display = 'inline-flex';
   }
 
-  async function loadProfileBanner(){
-    if (!restaurant?.id) return;
+  async function checkProfileAndStatus(){
     try{
       const r = await fetch(`${API}/restaurant/${restaurant.id}`);
-      if (!r.ok) throw 0;
-      const prof = await r.json();
-      if (isProfileComplete(prof)) els.profileBanner.classList.add('hidden');
-      else els.profileBanner.classList.remove('hidden');
-    } catch { /* silent */ }
+      if(!r.ok) throw 0;
+      const p = await r.json();
+      const city = p.city ? `, ${p.city}` : '';
+      els.restInfo.textContent = `Вы вошли как: ${restaurant.name}${city} (id ${restaurant.id})`;
+      const incomplete = !(p.phone && p.address && p.city);
+      els.profileBanner.style.display = incomplete ? 'flex' : 'none';
+    }catch{
+      els.restInfo.textContent = `Ресторан id ${restaurant?.id||'—'}`;
+    }
   }
 
-  function money(v){ try { return new Intl.NumberFormat('ru-RU').format(v) + ' ₽'; } catch { return v + ' ₽'; } }
-  function fmtDT(s){ try { return new Date(s).toLocaleString('ru-RU', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s || '—'; } }
-
   async function loadOffers(){
-    if (!restaurant?.id) return;
-    const q = await fetch(`${API}/offers?restaurant_id=${restaurant.id}`);
-    const arr = await q.json();
+    try{
+      const r = await fetch(`${API}/offers`);
+      const list = await r.json();
+      const my = (restaurant?.id) ? list.filter(o => o.restaurant_id === restaurant.id) : [];
+      renderOffers(my);
+    }catch{ toast('Ошибка загрузки офферов'); }
+  }
+
+  function renderOffers(items){
     els.offers.innerHTML='';
-    const qstr = (els.search?.value || '').toLowerCase();
-    const items = qstr ? arr.filter(o => (o.title||'').toLowerCase().includes(qstr)) : arr;
-    if (!items.length) els.empty.classList.remove('hidden'); else els.empty.classList.add('hidden');
-    for (const o of items){
+    let arr = items;
+    const q = (els.search.value||'').toLowerCase();
+    if(q) arr = arr.filter(o => (o.title||'').toLowerCase().includes(q));
+    if(!arr.length){ els.empty.classList.remove('hidden'); return; } else els.empty.classList.add('hidden');
+    for(const o of arr){
+      const img = o.photo_url ? `<div style="margin:6px 0"><img src="${o.photo_url}" alt="" style="width:100%;max-height:160px;object-fit:cover;border-radius:12px"/></div>` : '';
       const card = document.createElement('div');
-      card.className = 'card';
+      card.className='card-item';
       card.innerHTML = `
-        <div class="muted small">ID ${o.id}</div>
-        <div style="font-weight:600">${o.title}</div>
-        <div class="muted">${o.description||''}</div>
-        <div class="muted">До: ${fmtDT(o.expires_at)}</div>
-        <div style="margin:8px 0"><b>${money(o.price)}</b> • Остаток: ${o.quantity}</div>
-        <div class="row" style="grid-template-columns:auto auto;gap:8px">
+        <div><b>${o.title}</b></div>
+        ${img}
+        <div class="meta">До: ${fmtDT(o.expires_at)} • Остаток: ${o.quantity}</div>
+        <div><b>${money(o.price)}</b></div>
+        <div class="actions">
           <button class="btn" data-edit="${o.id}">Редактировать</button>
           <button class="btn" data-del="${o.id}">Удалить</button>
         </div>`;
@@ -133,39 +128,67 @@
   }
 
   async function delOffer(id){
-    if (!confirm('Удалить предложение?')) return;
-    try{ await fetch(`${API}/offers/${id}`, { method:'DELETE' }); notify('Удалено'); loadOffers(); }catch{ notify('Ошибка удаления'); }
+    if(!confirm('Удалить предложение?')) return;
+    try{
+      const r = await fetch(`${API}/offers/${id}`, { method:'DELETE' });
+      if(r.ok){ toast('Удалено'); loadOffers(); } else toast('Не удалось удалить');
+    }catch{ toast('Ошибка сети'); }
   }
+
+  // Edit modal
+  const modal = document.getElementById('editModal');
+  const ef = document.getElementById('editForm');
+  const eId = document.getElementById('editId');
+  const eTitle = document.getElementById('editTitle');
+  const eDesc = document.getElementById('editDesc');
+  const ePrice = document.getElementById('editPrice');
+  const eQty = document.getElementById('editQty');
+  const eExp = document.getElementById('editExpires');
 
   function openEdit(o){
-    els.editId.value = o.id;
-    els.editTitle.value = o.title || '';
-    els.editDesc.value = o.description || '';
-    els.editPrice.value = o.price;
-    els.editQty.value = o.quantity;
-    els.editExpires.value = o.expires_at ? new Date(o.expires_at).toISOString().slice(0,16) : '';
-    els.editModal.showModal();
+    eId.value = o.id;
+    eTitle.value = o.title || '';
+    eDesc.value = o.description || '';
+    ePrice.value = o.price;
+    eQty.value = o.quantity;
+    try { const d = new Date(o.expires_at); eExp.value = d.toISOString().slice(0,16); } catch {}
+    modal.showModal();
   }
 
-  els.editForm.addEventListener('submit', async (ev) => {
+  ef.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const id = Number(els.editId.value);
+    const id = Number(eId.value);
     const payload = {
-      title: els.editTitle.value.trim() || undefined,
-      description: els.editDesc.value.trim() || undefined,
-      price: els.editPrice.value ? Number(els.editPrice.value) : undefined,
-      quantity: els.editQty.value ? Number(els.editQty.value) : undefined,
-      expires_at: els.editExpires.value ? new Date(els.editExpires.value).toISOString() : undefined,
+      title: eTitle.value.trim() || undefined,
+      description: eDesc.value.trim() || undefined,
+      price: ePrice.value ? Number(ePrice.value) : undefined,
+      quantity: eQty.value ? Number(eQty.value) : undefined,
+      expires_at: eExp.value ? new Date(eExp.value).toISOString() : undefined,
     };
     try{
-      await fetch(`${API}/offers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-      els.editModal.close(); notify('Сохранено'); loadOffers();
-    }catch{ notify('Ошибка сохранения'); }
+      const r = await fetch(`${API}/offers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if(r.ok){ toast('Сохранено'); modal.close(); loadOffers(); } else toast('Не удалось сохранить');
+    }catch{ toast('Ошибка сети'); }
   });
+
+  async function uploadPhotoIfAny(){
+    const f = els.photo?.files?.[0];
+    if(!f) return null;
+    try{
+      const init = await fetch(`${API}/upload_init`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ filename: f.name, content_type: f.type || 'image/jpeg' })
+      }).then(r=>r.json());
+      await fetch(init.upload_url, { method:'PUT', headers: init.headers || {'Content-Type': f.type || 'image/jpeg'}, body: f });
+      return init.public_url;
+    }catch{ toast('Загрузка фото не настроена'); return null; }
+  }
 
   els.createForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    if (!restaurant?.id) return notify('Нет ресторана');
+    if(!restaurant?.id) return toast('Нет ресторана');
+    const photo_url = await uploadPhotoIfAny();
     const payload = {
       restaurant_id: restaurant.id,
       title: els.title.value.trim(),
@@ -173,39 +196,83 @@
       price: Number(els.price.value),
       quantity: Number(els.qty.value),
       expires_at: els.expires.value ? new Date(els.expires.value).toISOString() : null,
+      photo_url: photo_url || null
     };
     try{
-      const r = await fetch(`${API}/offers`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if (!r.ok) throw 0;
-      notify('Добавлено'); els.createForm.reset(); loadOffers();
-    }catch{ notify('Ошибка добавления'); }
+      const r = await fetch(`${API}/offers`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      if(r.ok){ toast('Добавлено'); els.createForm.reset(); loadOffers(); }
+      else { const t = await r.text(); toast('Ошибка: ' + t); }
+    }catch{ toast('Ошибка сети'); }
   });
 
-  els.refreshBtn.addEventListener('click', () => { loadOffers(); loadProfileBanner(); });
-  els.addFloating.addEventListener('click', () => document.getElementById('title').focus());
-  els.search?.addEventListener('input', () => loadOffers());
-  els.openOnboarding.addEventListener('click', (e) => {
-    e.preventDefault();
-    const url = new URL('./onboarding.html', location.href);
-    url.searchParams.set('api', API);
-    location.href = url.toString();
-  });
+  // Reservations list
+  async function loadReservations(){
+    if(!els.resTable) return;
+    try{
+      const r = await fetch(`${API}/restaurant_reservations/${restaurant.id}`);
+      const list = await r.json();
+      renderReservations(list);
+    }catch{}
+  }
+  function renderReservations(list){
+    const tbody = els.resTable; tbody.innerHTML='';
+    const filter = els.resFilter.value;
+    let arr = list;
+    if(filter!=='all') arr = arr.filter(x => x.status === filter);
+    if(!arr.length){ els.resEmpty.classList.remove('hidden'); return;} else els.resEmpty.classList.add('hidden');
+    for(const x of arr){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${x.code}</td><td>${x.offer_title}</td><td>${x.buyer_name||'—'}</td>
+                      <td>${x.status}</td><td>${fmtDT(x.expires_at)}</td><td>${fmtDT(x.created_at)}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
 
+  // Events
+  document.getElementById('refreshBtn')?.addEventListener('click', ()=>reloadAll());
+  els.search?.addEventListener('input', ()=>loadOffers());
+  els.reloadOffers?.addEventListener('click', ()=>loadOffers());
+  els.resFilter?.addEventListener('change', ()=>loadReservations());
+  els.resRefresh?.addEventListener('click', ()=>loadReservations());
+  els.addFloating?.addEventListener('click', ()=>{ window.scrollTo({top:0, behavior:'smooth'}); els.title.focus(); });
+
+  // Auth controls
   els.logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('foody_restaurant');
     setLoggedOut(true);
     try { if (window.Telegram && Telegram.WebApp) { Telegram.WebApp.close(); return; } } catch {}
     location.reload();
   });
-  els.loginBtn.addEventListener('click', () => { setLoggedOut(false); location.reload(); });
+  els.loginBtn.addEventListener('click', async () => {
+    setLoggedOut(false);
+    const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (u) {
+      try {
+        const r = await fetch(`${API}/whoami?telegram_id=${u.id}`);
+        if (r.ok) {
+          const data = await r.json();
+          restaurant = { id: data.restaurant_id, name: data.restaurant_name };
+          localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
+          await autoLinkIfPossible();
+          showLoggedUI();
+          await reloadAll();
+          return;
+        }
+      } catch {}
+    }
+    els.restInfo.innerHTML = 'Откройте Mini App из бота <b>Foody</b> для авторизации.';
+  });
+
+  async function reloadAll(){
+    await Promise.all([checkProfileAndStatus(), loadOffers(), loadReservations()]);
+  }
 
   async function init(){
     if (loggedOut()) { showLoggedOutUI(); return; }
-    if (restaurant?.id){ await autoLinkIfPossible(); showLoggedUI(); await loadProfileBanner(); await loadOffers(); return; }
+    if (restaurant?.id){ await autoLinkIfPossible(); showLoggedUI(); await reloadAll(); return; }
     const ok = await tryTelegramLogin();
-    if (ok){ await loadProfileBanner(); await loadOffers(); return; }
-    els.restInfo.textContent = 'Откройте Mini App из бота для авторизации.';
-    els.loginBtn.style.display = 'inline-flex';
+    if (ok) return;
+    showLoggedOutUI();
   }
 
   init();

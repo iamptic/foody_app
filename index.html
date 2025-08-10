@@ -1,19 +1,19 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Foody — Личный кабинет ресторана</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Foody — Личный кабинет</title>
+  <link rel="stylesheet" href="./styles.css"/>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="light">
   <header class="topbar">
     <div class="brand">
       <div class="logo">🍲</div>
-      <div>
+      <div class="title">
         <div class="name">Foody</div>
-        <div class="subtitle">Личный кабинет ресторана</div>
+        <div class="subtitle">ЛК ресторана</div>
       </div>
     </div>
     <div class="top-actions">
@@ -23,45 +23,68 @@
   </header>
 
   <main class="container">
+    <section class="card highlight banner" id="profileBanner" style="display:none">
+      <div>
+        <div class="banner-title">Заполните профиль</div>
+        <div class="banner-sub">Добавьте телефон, адрес и город — так вас увидят покупатели</div>
+      </div>
+      <div><a class="btn primary" href="./onboarding.html">Заполнить</a></div>
+    </section>
+
     <section class="card highlight">
       <div>
         <div class="muted small">Статус</div>
         <div id="restInfo" class="status">Проверяем…</div>
       </div>
       <div class="env">
-        <span class="badge">Tomsk UTC+7</span>
-        <button id="loginBtn" class="btn primary">Войти</button>
+        <button id="loginBtn" class="btn primary" style="display:none">Войти</button>
       </div>
-    </section>
-
-    <section id="profileBanner" class="banner hidden">
-      <div>
-        <div class="banner-title">Заполните профиль</div>
-        <div class="banner-sub">Добавьте телефон и адрес — так покупатели смогут забрать заказ. </div>
-      </div>
-      <div><a id="openOnboarding" class="btn primary" href="#">Открыть форму</a></div>
     </section>
 
     <section class="grid two">
       <div class="card">
         <h3>Новое предложение</h3>
         <form id="createForm" class="form">
-          <div class="field"><label>Название*</label><input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня" /></div>
-          <div class="field"><label>Описание</label><textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea></div>
-          <div class="row">
-            <div class="field"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199" /></div>
-            <div class="field"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5" /></div>
+          <div class="field">
+            <label>Название*</label>
+            <input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня"/>
           </div>
-          <div class="field"><label>Действует до</label><input id="expires" type="datetime-local" /><div class="hint">Если пусто — до 23:59 (Томск).</div></div>
-          <div class="actions"><button class="btn primary" type="submit">Сохранить</button><button class="btn ghost" type="reset">Сбросить</button></div>
+          <div class="field">
+            <label>Описание</label>
+            <textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>Цена (₽)*</label>
+              <input id="price" type="number" step="0.01" min="0" required placeholder="199"/>
+            </div>
+            <div class="field">
+              <label>Количество*</label>
+              <input id="qty" type="number" min="1" step="1" required placeholder="5"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Действует до</label>
+            <input id="expires" type="datetime-local"/>
+            <div class="hint">Дата и время окончания по локальному времени.</div>
+          </div>
+          <div class="field">
+            <label>Фото (опционально)</label>
+            <input id="photo" type="file" accept="image/*"/>
+            <div class="hint">PNG/JPG до 4 МБ</div>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="submit">Сохранить</button>
+            <button class="btn ghost" type="reset">Сбросить</button>
+          </div>
         </form>
       </div>
       <div class="card">
         <h3>Подсказки</h3>
         <ul class="tips">
           <li>Короткие названия — выше CTR.</li>
-          <li>Цена кратная 10 — проще восприятие.</li>
-          <li>Ставьте срок действия — избегайте случайных брони в ночи.</li>
+          <li>Поддерживайте остаток &gt; 0, не забывайте продлевать срок.</li>
+          <li>Редактируйте/удаляйте ниже, в «Моих предложениях».</li>
         </ul>
       </div>
     </section>
@@ -69,7 +92,10 @@
     <section class="card">
       <div class="list-head">
         <h3>Мои предложения</h3>
-        <div class="filters"><input id="search" class="input" placeholder="Поиск по названию…" /></div>
+        <div class="filters">
+          <input id="search" class="input" placeholder="Поиск по названию…"/>
+          <button id="reloadOffers" class="btn ghost">Обновить</button>
+        </div>
       </div>
       <div id="empty" class="empty hidden">
         <div class="empty-emoji">🗂️</div>
@@ -78,22 +104,56 @@
       </div>
       <div id="offers" class="cards-grid"></div>
     </section>
+
+    <section class="card">
+      <div class="list-head">
+        <h3>Брони</h3>
+        <div class="filters">
+          <select id="resFilter" class="input">
+            <option value="all">Все</option>
+            <option value="active">Активные</option>
+            <option value="redeemed">Погашенные</option>
+            <option value="expired">Истекшие</option>
+            <option value="canceled">Отменённые</option>
+          </select>
+          <button id="resRefresh" class="btn ghost">Обновить</button>
+        </div>
+      </div>
+      <div id="resEmpty" class="empty hidden">
+        <div class="empty-emoji">📭</div>
+        <div class="empty-title">Броней пока нет</div>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="resTable">
+          <thead><tr><th>Код</th><th>Оффер</th><th>Покупатель</th><th>Статус</th><th>Действует до</th><th>Создано</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
-  <footer class="footer"><button id="addFloating" class="fab">＋ Добавить</button></footer>
+  <footer class="footer">
+    <button id="addFloating" class="fab">＋ Добавить</button>
+  </footer>
 
   <dialog id="editModal" class="modal">
     <form method="dialog" class="modal-card" id="editForm">
       <h3>Редактирование</h3>
-      <input type="hidden" id="editId" />
-      <div class="field"><label>Название</label><input id="editTitle" maxlength="120" /></div>
+      <input type="hidden" id="editId"/>
+      <div class="field"><label>Название</label><input id="editTitle" maxlength="120"/></div>
       <div class="field"><label>Описание</label><textarea id="editDesc" rows="3" maxlength="600"></textarea></div>
       <div class="row">
-        <div class="field"><label>Цена (₽)</label><input id="editPrice" type="number" step="0.01" min="0" /></div>
-        <div class="field"><label>Количество</label><input id="editQty" type="number" step="1" min="0" /></div>
+        <div class="field"><label>Цена (₽)</label><input id="editPrice" type="number" step="0.01" min="0"/></div>
+        <div class="field"><label>Количество</label><input id="editQty" type="number" step="1" min="0"/></div>
       </div>
-      <div class="field"><label>Действует до</label><input id="editExpires" type="datetime-local" /></div>
-      <div class="actions end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" id="editSubmit" value="default">Сохранить</button></div>
+      <div class="field">
+        <label>Действует до</label>
+        <input id="editExpires" type="datetime-local"/>
+      </div>
+      <div class="actions end">
+        <button class="btn ghost" value="cancel">Отмена</button>
+        <button class="btn primary" id="editSubmit" value="default">Сохранить</button>
+      </div>
     </form>
   </dialog>
 
