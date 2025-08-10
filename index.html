@@ -11,6 +11,11 @@
     .modal-close { position:absolute; top:10px; right:10px; border:none; background:transparent; font-size:20px; cursor:pointer; }
     .row.gap { gap:8px; }
     .muted.small { font-size:12px; color:#666; }
+    .tips-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .tip{ padding:12px; border-radius:12px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .tip b{ display:block; margin-bottom:4px }
+    @media (max-width: 760px){ .tips-grid{ grid-template-columns:1fr } }
+    .callout{ border-left:4px solid #10b981; background:#ecfdf5; padding:10px 12px; border-radius:8px; }
   </style>
 </head>
 <body class="light">
@@ -63,8 +68,16 @@
         </form>
       </div>
       <div class="card">
-        <h3>Подсказки</h3>
-        <ul class="tips"><li>Короткие названия — выше CTR.</li><li>Поддерживайте остаток &gt; 0.</li><li>Редактируйте/удаляйте ниже.</li></ul>
+        <h3>Быстрый старт</h3>
+        <div class="tips-grid" id="tipsGrid">
+          <div class="tip"><b>1. Заполните профиль</b><span class="muted small">Телефон, адрес, город — чтобы вас нашли.</span></div>
+          <div class="tip"><b>2. Добавьте первое предложение</b><span class="muted small">Короткое название, фото, срок действия до конца дня.</span></div>
+          <div class="tip"><b>3. Держите остаток &gt; 0</b><span class="muted small">Так карточка остаётся в выдаче.</span></div>
+          <div class="tip"><b>4. Фото решает</b><span class="muted small">Снимок блюда 3:2, без текста и водяных знаков.</span></div>
+          <div class="tip"><b>5. Чёткие цены</b><span class="muted small">Дисконт 40–70% повышает конверсию.</span></div>
+          <div class="tip"><b>6. Время — деньги</b><span class="muted small">Ставьте «Действует до» ближе к закрытию.</span></div>
+        </div>
+        <div id="tipsCallout" class="callout" style="display:none; margin-top:10px;"></div>
       </div>
     </section>
 

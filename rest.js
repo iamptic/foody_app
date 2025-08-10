@@ -1,4 +1,4 @@
-// Foody LK — settings, create restaurant fix, logout, switch active, edit photo
+// Foody LK — create restaurant robust, CORS diagnostics, improved tips
 (() => {
   const urlApi = new URLSearchParams(location.search).get('api');
   if (urlApi) localStorage.setItem('foody_api', urlApi);
@@ -27,6 +27,7 @@
     settingsClose: document.getElementById('settingsClose'),
     newRestName: document.getElementById('newRestName'), createRestBtn: document.getElementById('createRestBtn'),
     saveSettings: document.getElementById('saveSettings'),
+    tipsCallout: document.getElementById('tipsCallout'),
   };
 
   let restaurant = null;
@@ -36,10 +37,27 @@
     let node = document.getElementById('toast');
     if (!node) { node = document.createElement('div'); node.id='toast'; node.className='toast'; document.body.appendChild(node); }
     node.textContent = msg; node.classList.remove('hidden');
-    setTimeout(()=>node.classList.add('hidden'), 2200);
+    setTimeout(()=>node.classList.add('hidden'), 2600);
   };
   const fmtDT = (s) => { try { return new Date(s).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s||'—'; } };
   const money = (v) => new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
+
+  // --- Diagnostics helper for fetch ---
+  async function fetchJSON(input, init){
+    try{
+      const res = await fetch(input, init);
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')){
+        const data = await res.json();
+        return { ok: res.ok, status: res.status, data };
+      } else {
+        const text = await res.text();
+        return { ok: res.ok, status: res.status, data: { text } };
+      }
+    }catch(e){
+      return { ok:false, status:0, data:{ error: (e && e.message) ? e.message : 'network_error' } };
+    }
+  }
 
   // --- API helpers ---
   async function whoami(){
@@ -257,34 +275,40 @@
     } catch {}
   }
 
-  // Create restaurant (fix)
+  // Create restaurant with diagnostics
   els.createRestBtn?.addEventListener('click', async (ev) => {
     ev.preventDefault();
     const name = (els.newRestName.value || '').trim() || 'Мой ресторан';
     const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
     if(!u){ toast('Откройте из Telegram'); return; }
     els.createRestBtn.disabled = true;
-    try {
-      const r = await fetch(`${API}/register_telegram?force_new=true`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ name, telegram_id: String(u.id) })
-      });
-      const data = await r.json();
-      if (r.ok && data.restaurant_id) {
-        restaurant = { id: data.restaurant_id, name: data.restaurant_name || name };
-        localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
-        await fetch(`${API}/set_active_restaurant?telegram_id=${u.id}&restaurant_id=${restaurant.id}`, { method:'POST' });
-        els.settingsModal.close();
-        await reloadAll();
-        toast(`Создан «${restaurant.name}» и выбран активным`);
-      } else {
-        toast('Не удалось создать: ' + (data?.detail || r.status));
+    const res = await fetchJSON(`${API}/register_telegram?force_new=true`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, telegram_id: String(u.id) })
+    });
+    if (!res.ok){
+      const msg = (res.data && (res.data.detail || res.data.text || res.data.error)) ? String(res.data.detail || res.data.text || res.data.error) : 'Ошибка';
+      toast('Не удалось создать: ' + msg);
+      // CORS hint
+      if (res.status === 0){
+        els.tipsCallout.style.display = 'block';
+        els.tipsCallout.textContent = 'Похоже, сервер недоступен или домен Mini App не добавлен в CORS_ORIGINS на бэкенде.';
       }
-    } catch {
-      toast('Ошибка сети');
-    } finally {
       els.createRestBtn.disabled = false;
+      return;
     }
+    const data = res.data || {};
+    if (data.restaurant_id){
+      restaurant = { id: data.restaurant_id, name: data.restaurant_name || name };
+      localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
+      try { await fetch(`${API}/set_active_restaurant?telegram_id=${u.id}&restaurant_id=${restaurant.id}`, { method:'POST' }); } catch {}
+      els.settingsModal.close();
+      await reloadAll();
+      toast(`Создан «${restaurant.name}» и выбран активным`);
+    } else {
+      toast('Не удалось создать (пустой ответ)');
+    }
+    els.createRestBtn.disabled = false;
   });
 
   // Save settings (switch active restaurant robust)
@@ -317,7 +341,7 @@
   });
 
   // Settings close (X)
-  els.settingsClose?.addEventListener('click', () => els.settingsModal.close());
+  document.getElementById('settingsClose')?.addEventListener('click', () => els.settingsModal.close());
 
   // --- Auth / Logout ---
   els.logoutBtn.addEventListener('click', () => {
@@ -339,8 +363,20 @@
     await Promise.all([checkProfileAndStatus(), loadOffers(), loadReservations()]);
   }
 
+  // Dynamic tips: show CORS hint if needed, show profile tip if not completed
+  async function dynamicTips(){
+    try{
+      if (!restaurant?.id) return;
+      const p = await fetchProfile();
+      if (!(p.phone && p.address && p.city)){
+        els.tipsCallout.style.display = 'block';
+        els.tipsCallout.textContent = 'Заполните профиль (телефон, адрес, город), чтобы предложения стали видимы покупателям.';
+      }
+    }catch{}
+  }
+
   async function init(){
-    if (restaurant?.id){ await reloadAll(); return; }
+    if (restaurant?.id){ await reloadAll(); dynamicTips(); return; }
     const skip = localStorage.getItem('foody_skip_autologin') === '1';
     if (skip){
       els.restInfo.textContent = 'Вы вышли. Откройте «Настройки», чтобы выбрать ресторан, или нажмите «Войти».';
@@ -352,6 +388,7 @@
       restaurant = { id: d.restaurant_id, name: d.restaurant_name };
       localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
       await reloadAll();
+      dynamicTips();
     }catch{
       els.restInfo.textContent = 'Нет привязки к ресторану. Откройте «Настройки», создайте или выберите ресторан.';
       els.loginBtn.style.display = 'inline-flex';
