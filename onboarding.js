@@ -1,4 +1,3 @@
-// Onboarding: after successful save -> redirect back to LK with api param
 (() => {
   const API = new URLSearchParams(location.search).get('api') || localStorage.getItem('foody_api') || 'http://localhost:8000';
   const els = {
@@ -11,7 +10,7 @@
     note: document.getElementById('note'),
     toast: document.getElementById('toast'),
   };
-  const toast = (m)=>{ els.toast.textContent=m; els.toast.classList.remove('hidden'); setTimeout(()=>els.toast.classList.add('hidden'),1200); };
+  const toast = (m)=>{ els.toast.textContent=m; els.toast.classList.remove('hidden'); setTimeout(()=>els.toast.classList.add('hidden'),2000); };
 
   function getRid(){
     try { return JSON.parse(localStorage.getItem('foody_restaurant')||'null')?.id || null; } catch { return null; }
@@ -23,7 +22,7 @@
       const data = await r.json();
       els.city.innerHTML = data.cities.map(c=>`<option value="${c}">${c}</option>`).join('');
     } catch {
-      els.city.innerHTML = ['Москва','Санкт-Петербург','Томск','Новосибирск'].map(c=>`<option>${c}</option>`).join('');
+      els.city.innerHTML = ['Москва','Санкт‑Петербург','Томск','Новосибирск'].map(c=>`<option>${c}</option>`).join('');
     }
   }
 
@@ -59,7 +58,7 @@
     };
     try {
       const r = await fetch(`${API}/restaurant/${rid}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if (r.ok) { toast('Сохранено'); setTimeout(()=>{ window.location.href = `./index.html?api=${encodeURIComponent(API)}` }, 800); }
+      if (r.ok) { toast('Сохранено'); }
       else { const t = await r.text(); toast('Не удалось сохранить: ' + t); }
     } catch { toast('Ошибка сети'); }
   });

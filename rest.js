@@ -1,4 +1,4 @@
-// LK logic: redirect after profile save, stable upload, settings, edit-photo
+// LK logic with photo upload fallback, settings fixes, API persistence
 (() => {
   const urlApi = new URLSearchParams(location.search).get('api');
   if (urlApi) localStorage.setItem('foody_api', urlApi);
@@ -23,15 +23,10 @@
     resFilter: document.getElementById('resFilter'), resRefresh: document.getElementById('resRefresh'),
     resEmpty: document.getElementById('resEmpty'), addFloating: document.getElementById('addFloating'),
     profileBanner: document.getElementById('profileBanner'),
-    settingsBtn: document.getElementById('settingsBtn'),
+    refreshBtn: document.getElementById('refreshBtn'), settingsBtn: document.getElementById('settingsBtn'),
     settingsModal: document.getElementById('settingsModal'), restSelect: document.getElementById('restSelect'),
     newRestName: document.getElementById('newRestName'), createRestBtn: document.getElementById('createRestBtn'),
     saveSettings: document.getElementById('saveSettings'),
-    editModal: document.getElementById('editModal'), editForm: document.getElementById('editForm'),
-    editId: document.getElementById('editId'), editTitle: document.getElementById('editTitle'),
-    editDesc: document.getElementById('editDesc'), editPrice: document.getElementById('editPrice'),
-    editQty: document.getElementById('editQty'), editExpires: document.getElementById('editExpires'),
-    editPhoto: document.getElementById('editPhoto')
   };
 
   let restaurant = null;
@@ -41,7 +36,7 @@
     let node = document.getElementById('toast');
     if (!node) { node = document.createElement('div'); node.id='toast'; node.className='toast'; document.body.appendChild(node); }
     node.textContent = msg; node.classList.remove('hidden');
-    setTimeout(()=>node.classList.add('hidden'), 2000);
+    setTimeout(()=>node.classList.add('hidden'), 2200);
   };
   const fmtDT = (s) => { try { return new Date(s).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});} catch { return s||'—'; } };
   const money = (v) => new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
@@ -110,38 +105,45 @@
     }catch{ toast('Ошибка сети'); }
   }
 
+  const modal = document.getElementById('editModal');
+  const ef = document.getElementById('editForm');
+  const eId = document.getElementById('editId');
+  const eTitle = document.getElementById('editTitle');
+  const eDesc = document.getElementById('editDesc');
+  const ePrice = document.getElementById('editPrice');
+  const eQty = document.getElementById('editQty');
+  const eExp = document.getElementById('editExpires');
+
   function openEdit(o){
-    els.editId.value = o.id;
-    els.editTitle.value = o.title || '';
-    els.editDesc.value = o.description || '';
-    els.editPrice.value = o.price;
-    els.editQty.value = o.quantity;
-    try { const d = new Date(o.expires_at); els.editExpires.value = d.toISOString().slice(0,16); } catch {}
-    els.editPhoto.value = '';
-    els.editModal.showModal();
+    eId.value = o.id;
+    eTitle.value = o.title || '';
+    eDesc.value = o.description || '';
+    ePrice.value = o.price;
+    eQty.value = o.quantity;
+    try { const d = new Date(o.expires_at); eExp.value = d.toISOString().slice(0,16); } catch {}
+    modal.showModal();
   }
 
-  els.editForm.addEventListener('submit', async (ev) => {
+  ef.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const id = Number(els.editId.value);
+    const id = Number(eId.value);
     const payload = {
-      title: els.editTitle.value.trim() || undefined,
-      description: els.editDesc.value.trim() || undefined,
-      price: els.editPrice.value ? Number(els.editPrice.value) : undefined,
-      quantity: els.editQty.value ? Number(els.editQty.value) : undefined,
-      expires_at: els.editExpires.value ? new Date(els.editExpires.value).toISOString() : undefined,
+      title: eTitle.value.trim() || undefined,
+      description: eDesc.value.trim() || undefined,
+      price: ePrice.value ? Number(ePrice.value) : undefined,
+      quantity: eQty.value ? Number(eQty.value) : undefined,
+      expires_at: eExp.value ? new Date(eExp.value).toISOString() : undefined,
     };
-    if (els.editPhoto.files && els.editPhoto.files[0]) {
-      const url = await uploadGenericFile(els.editPhoto.files[0]);
-      if (url) payload.photo_url = url;
-    }
     try{
       const r = await fetch(`${API}/offers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if(r.ok){ toast('Сохранено'); els.editModal.close(); loadOffers(); } else { const t = await r.text(); toast('Ошибка: ' + t); }
+      if(r.ok){ toast('Сохранено'); modal.close(); loadOffers(); } else { const t = await r.text(); toast('Ошибка: ' + t); }
     }catch{ toast('Ошибка сети'); }
   });
 
-  async function uploadGenericFile(f){
+  async function uploadPhoto(){
+    const f = els.photo?.files?.[0];
+    if(!f) return null;
+    // try s3 presign first
     try{
       const init = await fetch(`${API}/upload_init`, {
         method:'POST',
@@ -154,21 +156,14 @@
         return initData.public_url;
       }
     }catch{}
+    // fallback /upload
     try{
       const fd = new FormData(); fd.append('file', f);
       const r = await fetch(`${API}/upload`, { method:'POST', body: fd });
       const d = await r.json();
       if(d.url) return d.url;
     }catch{}
-    toast('Фото не загружено');
-    return null;
-  }
-
-  async function uploadPhoto(){
-    const f = els.photo?.files?.[0];
-    if(!f) return null;
-    const u = await uploadGenericFile(f);
-    return u;
+    toast('Фото не загружено'); return null;
   }
 
   els.createForm.addEventListener('submit', async (ev) => {
@@ -239,9 +234,6 @@
           els.restSelect.appendChild(opt);
         }
       }
-      if (!els.restSelect.value && els.restSelect.options.length) {
-        els.restSelect.selectedIndex = 0;
-      }
     } catch {}
   }
 
@@ -291,9 +283,7 @@
       restaurant = { id: d.restaurant_id, name: d.restaurant_name };
       localStorage.setItem('foody_restaurant', JSON.stringify(restaurant));
       await reloadAll();
-    } catch {
-      openSettings();
-    }
+    } catch { openSettings(); }
   });
 
   async function reloadAll(){
@@ -313,7 +303,8 @@
     }
   }
 
-  // Wire
+  // Wire buttons
+  document.getElementById('refreshBtn')?.addEventListener('click', ()=>reloadAll());
   document.getElementById('search')?.addEventListener('input', ()=>loadOffers());
   document.getElementById('reloadOffers')?.addEventListener('click', ()=>loadOffers());
   document.getElementById('resFilter')?.addEventListener('change', ()=>loadReservations());
