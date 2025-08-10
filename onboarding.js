@@ -10,7 +10,7 @@
     note: document.getElementById('note'),
     toast: document.getElementById('toast'),
   };
-  const toast = (m)=>{ els.toast.textContent=m; els.toast.classList.remove('hidden'); setTimeout(()=>els.toast.classList.add('hidden'),2000); };
+  const toast = (m)=>{ els.toast.textContent=m; els.toast.classList.remove('hidden'); setTimeout(()=>els.toast.classList.add('hidden'),1500); };
 
   function getRid(){
     try { return JSON.parse(localStorage.getItem('foody_restaurant')||'null')?.id || null; } catch { return null; }
@@ -58,9 +58,15 @@
     };
     try {
       const r = await fetch(`${API}/restaurant/${rid}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if (r.ok) { toast('Сохранено'); }
-      else { const t = await r.text(); toast('Не удалось сохранить: ' + t); }
-    } catch { toast('Ошибка сети'); }
+      if (r.ok) {
+        toast('Сохранено');
+        setTimeout(()=>{ window.location.href = `./index.html?api=${encodeURIComponent(API)}`; }, 700);
+      } else {
+        const t = await r.text(); toast('Не удалось сохранить: ' + t);
+      }
+    } catch {
+      toast('Ошибка сети');
+    }
   });
 
   load();
