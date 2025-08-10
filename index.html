@@ -17,6 +17,7 @@
       </div>
     </div>
     <div class="top-actions">
+      <button id="settingsBtn" class="btn ghost">Настройки</button>
       <button id="refreshBtn" class="btn ghost">Обновить</button>
       <button id="logoutBtn" class="btn ghost">Выйти</button>
     </div>
@@ -45,47 +46,20 @@
       <div class="card">
         <h3>Новое предложение</h3>
         <form id="createForm" class="form">
-          <div class="field">
-            <label>Название*</label>
-            <input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня"/>
-          </div>
-          <div class="field">
-            <label>Описание</label>
-            <textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea>
-          </div>
+          <div class="field"><label>Название*</label><input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня"/></div>
+          <div class="field"><label>Описание</label><textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea></div>
           <div class="row">
-            <div class="field">
-              <label>Цена (₽)*</label>
-              <input id="price" type="number" step="0.01" min="0" required placeholder="199"/>
-            </div>
-            <div class="field">
-              <label>Количество*</label>
-              <input id="qty" type="number" min="1" step="1" required placeholder="5"/>
-            </div>
+            <div class="field"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199"/></div>
+            <div class="field"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5"/></div>
           </div>
-          <div class="field">
-            <label>Действует до</label>
-            <input id="expires" type="datetime-local"/>
-            <div class="hint">Дата и время окончания по локальному времени.</div>
-          </div>
-          <div class="field">
-            <label>Фото (опционально)</label>
-            <input id="photo" type="file" accept="image/*"/>
-            <div class="hint">PNG/JPG до 4 МБ</div>
-          </div>
-          <div class="actions">
-            <button class="btn primary" type="submit">Сохранить</button>
-            <button class="btn ghost" type="reset">Сбросить</button>
-          </div>
+          <div class="field"><label>Действует до</label><input id="expires" type="datetime-local"/><div class="hint">Локальное время.</div></div>
+          <div class="field"><label>Фото (опционально)</label><input id="photo" type="file" accept="image/*"/><div class="hint">PNG/JPG до 4 МБ</div></div>
+          <div class="actions"><button class="btn primary" type="submit">Сохранить</button><button class="btn ghost" type="reset">Сбросить</button></div>
         </form>
       </div>
       <div class="card">
         <h3>Подсказки</h3>
-        <ul class="tips">
-          <li>Короткие названия — выше CTR.</li>
-          <li>Поддерживайте остаток &gt; 0, не забывайте продлевать срок.</li>
-          <li>Редактируйте/удаляйте ниже, в «Моих предложениях».</li>
-        </ul>
+        <ul class="tips"><li>Короткие названия — выше CTR.</li><li>Поддерживайте остаток &gt; 0.</li><li>Редактируйте/удаляйте ниже.</li></ul>
       </div>
     </section>
 
@@ -132,9 +106,29 @@
     </section>
   </main>
 
-  <footer class="footer">
-    <button id="addFloating" class="fab">＋ Добавить</button>
-  </footer>
+  <footer class="footer"><button id="addFloating" class="fab">＋ Добавить</button></footer>
+
+  <!-- Настройки в ЛК -->
+  <dialog id="settingsModal" class="modal">
+    <div class="modal-card">
+      <h3>Настройки</h3>
+      <div class="field">
+        <label>Активный ресторан</label>
+        <select id="restSelect" class="input"></select>
+      </div>
+      <div class="field">
+        <label>Создать новый ресторан</label>
+        <div class="row">
+          <input id="newRestName" class="input" placeholder="Название…"/>
+          <button id="createRestBtn" class="btn">Создать</button>
+        </div>
+      </div>
+      <div class="actions end">
+        <a class="btn" href="./onboarding.html">Заполнить профиль</a>
+        <button class="btn primary" id="saveSettings">Сохранить</button>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="editModal" class="modal">
     <form method="dialog" class="modal-card" id="editForm">
@@ -146,19 +140,12 @@
         <div class="field"><label>Цена (₽)</label><input id="editPrice" type="number" step="0.01" min="0"/></div>
         <div class="field"><label>Количество</label><input id="editQty" type="number" step="1" min="0"/></div>
       </div>
-      <div class="field">
-        <label>Действует до</label>
-        <input id="editExpires" type="datetime-local"/>
-      </div>
-      <div class="actions end">
-        <button class="btn ghost" value="cancel">Отмена</button>
-        <button class="btn primary" id="editSubmit" value="default">Сохранить</button>
-      </div>
+      <div class="field"><label>Действует до</label><input id="editExpires" type="datetime-local"/></div>
+      <div class="actions end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" id="editSubmit" value="default">Сохранить</button></div>
     </form>
   </dialog>
 
   <div id="toast" class="toast hidden"></div>
   <script src="./rest.js"></script>
-  <script src="./webapp_rest_hotfix.js"></script>
 </body>
 </html>
