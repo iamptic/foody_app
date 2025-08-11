@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Foody — Сканер/выдача</title>
+  <link rel="stylesheet" href="./styles.css"/>
+  <style>
+    .wrap{max-width:900px;margin:0 auto;padding:16px}
+    .grid{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}
+    .card{background:#fff;border:1px solid #E0E0E0;border-radius:16px;padding:16px;box-shadow:0 3px 16px rgba(0,0,0,.04)}
+    .muted{color:#607D8B}
+    .ok{color:#1B5E20}
+    .bad{color:#C62828}
+    video{width:100%;border-radius:12px;background:#000}
+    input[type=text]{width:100%;padding:10px;border:1px solid #CFD8DC;border-radius:10px}
+    .btn{appearance:none;border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+    .btn.primary{background:#2E7D32;color:#fff}
+    .btn.ghost{background:transparent;border:1px solid #B0BEC5}
+    .row{display:flex;gap:8px;align-items:center}
+    .status{padding:10px;border-radius:10px;background:#F5F5F5;margin-top:8px}
+    .list{max-height:360px;overflow:auto}
+    .item{padding:8px 6px;border-bottom:1px dashed #ECEFF1}
+    .item:last-child{border-bottom:none}
+    .code{font-family:ui-monospace,Menlo,monospace;font-weight:700}
+  </style>
+</head>
+<body>
+  <header class="header"><div class="wrap">
+    <h2 style="color:#fff;margin:0">Сканер / выдача</h2>
+    <div class="muted" style="color:#E0F2F1">Погасите бронь по QR или коду. Работает офлайн-поиск и ручной ввод.</div>
+  </div></header>
+  <main class="wrap grid">
+    <section class="card">
+      <h3>Камера</h3>
+      <video id="video" playsinline></video>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="startBtn">Старт сканирования</button>
+        <button class="btn ghost" id="stopBtn">Стоп</button>
+        <input type="text" id="manualCode" placeholder="Ввести код вручную"/>
+        <button class="btn primary" id="redeemManual">Погасить</button>
+      </div>
+      <div class="status" id="status">Готово к сканированию</div>
+    </section>
+    <section class="card">
+      <h3>Текущие брони</h3>
+      <div class="muted">Точки: выбрана из вашего профиля. Если пусто — зайдите в «ЛК → Профиль».</div>
+      <div class="list" id="resList"></div>
+    </section>
+  </main>
+  <script>
+  (function(){
+    const API = new URLSearchParams(location.search).get('api') || localStorage.getItem('foody_api') || 'http://localhost:8000';
+    const els = {
+      video: document.getElementById('video'),
+      start: document.getElementById('startBtn'),
+      stop: document.getElementById('stopBtn'),
+      status: document.getElementById('status'),
+      manual: document.getElementById('manualCode'),
+      redeemManual: document.getElementById('redeemManual'),
+      list: document.getElementById('resList'),
+    };
+    let stream = null, raf = null, ctx=null, cvs=null, scanning=false, lastCode='';
+
+    function toast(txt, ok){
+      els.status.textContent = txt;
+      els.status.style.background = ok ? '#E8F5E9' : '#FFEBEE';
+      els.status.style.color = ok ? '#1B5E20' : '#C62828';
+    }
+
+    async function redeem(code){
+      if(!code) return;
+      try{
+        const r = await fetch(`${API}/reservations/${encodeURIComponent(code)}/redeem`, {method:'POST'});
+        const d = await r.json();
+        if (!r.ok) { toast(d?.detail || 'Ошибка погашения', false); return; }
+        toast('Погашено ✅', true);
+        await loadList();
+      }catch(e){ toast('Ошибка сети', false); }
+    }
+
+    async function loadList(){
+      try{
+        const rest = JSON.parse(localStorage.getItem('foody_restaurant')||'null');
+        if(!rest?.id){ els.list.innerHTML='<div class="muted">Нет активной точки</div>'; return; }
+        const r = await fetch(`${API}/restaurant_reservations/${rest.id}`);
+        const arr = await r.json();
+        els.list.innerHTML = '';
+        if(!Array.isArray(arr) || arr.length===0) { els.list.innerHTML='<div class="muted">Броней нет</div>'; return; }
+        for(const it of arr){
+          const div = document.createElement('div');
+          div.className='item';
+          div.innerHTML = '<div><span class="code">'+ (it.code||'') +'</span> — '+ (it.title||'') +'</div>' +
+                          '<div class="muted">'+ (it.buyer_name||'—') +' • до '+ (new Date(it.expires_at)).toLocaleString('ru-RU') +'</div>' +
+                          '<div class="row" style="margin-top:6px"><button class="btn primary">Погасить</button></div>';
+          div.querySelector('button').onclick = () => redeem(it.code);
+          els.list.appendChild(div);
+        }
+      }catch(e){ console.error(e); }
+    }
+
+    // Barcode via BarcodeDetector if available, else try simple QR lib (not bundled here)
+    async function start(){
+      if(scanning) return;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        els.video.srcObject = stream;
+        await els.video.play();
+        scanning = true;
+        toast('Сканирование запущено', true);
+        if ('BarcodeDetector' in window) {
+          const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+          const tick = async () => {
+            if (!scanning) return;
+            try {
+              const bitmap = await createImageBitmap(els.video);
+              const codes = await detector.detect(bitmap);
+              if (codes && codes.length) {
+                const code = (codes[0].rawValue||'').trim();
+                if (code && code !== lastCode) {
+                  lastCode = code;
+                  await redeem(code);
+                }
+              }
+            } catch {}
+            raf = requestAnimationFrame(tick);
+          };
+          raf = requestAnimationFrame(tick);
+        } else {
+          // Fallback: manual only (we could add jsQR later)
+          toast('Сканер браузера не поддерживается, используйте ручной ввод', false);
+        }
+      } catch (e) {
+        toast('Нет доступа к камере', false);
+      }
+    }
+    function stop(){
+      scanning=false;
+      if (raf) cancelAnimationFrame(raf);
+      if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
+      toast('Сканирование остановлено', true);
+    }
+
+    els.start.onclick = start;
+    els.stop.onclick = stop;
+    els.redeemManual.onclick = () => redeem((els.manual.value||'').trim());
+
+    loadList();
+  })();
+  </script>
+</body>
+</html>
