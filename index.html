@@ -3,31 +3,169 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Foody — Личный кабинет (Debug)</title>
+  <title>Foody — Личный кабинет</title>
+  <link rel="stylesheet" href="./styles.css"/>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;margin:0;background:#f7f7f8;color:#111}
-    .debugbar{position:sticky;top:0;z-index:9999;background:#111;color:#fff;padding:8px 12px;font-size:12px;display:flex;gap:12px;align-items:center}
-    .debugbar .dot{width:8px;height:8px;border-radius:50%}
-    .debugbar .dot.ok{background:#22c55e}.debugbar .dot.fail{background:#ef4444}
-    .debugbar .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;}
-    .debugbar button{font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#222;color:#fff;cursor:pointer}
-    .wrap{padding:16px}
-    .hint{font-size:13px;color:#666;margin-top:12px}
+    .modal-card { position: relative; }
+    .modal-close { position:absolute; top:10px; right:10px; border:none; background:transparent; font-size:20px; cursor:pointer; }
+    .row.gap { gap:8px; }
+    .muted.small { font-size:12px; color:#666; }
+    .tips-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .tip{ padding:12px; border-radius:12px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .tip b{ display:block; margin-bottom:4px }
+    @media (max-width: 760px){ .tips-grid{ grid-template-columns:1fr } }
+    .callout{ border-left:4px solid #10b981; background:#ecfdf5; padding:10px 12px; border-radius:8px; }
   </style>
 </head>
-<body>
-  <div class="debugbar">
-    <div id="dbgDot" class="dot fail" title="Backend health"></div>
-    <div>API: <span id="dbgApi" class="mono">—</span></div>
-    <div>Health: <span id="dbgHealth" class="mono">—</span></div>
-    <button id="dbgTest">Test: Create restaurant</button>
-  </div>
-  <div class="wrap">
-    <h2>Foody Mini‑App (режим диагностики)</h2>
-    <p class="hint">Эта страница показывает текущий API и статус бэкенда. Нажмите кнопку теста, чтобы увидеть точный ответ сервера.</p>
-  </div>
+<body class="light">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🍲</div>
+      <div class="title">
+        <div class="name">Foody</div>
+        <div class="subtitle">ЛК ресторана</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="settingsBtn" class="btn ghost">Настройки</button>
+      <button id="logoutBtn" class="btn ghost">Выйти</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card highlight banner" id="profileBanner" style="display:none">
+      <div>
+        <div class="banner-title">Заполните профиль</div>
+        <div class="banner-sub">Добавьте телефон, адрес и город — так вас увидят покупатели</div>
+      </div>
+      <div><a class="btn primary" href="./onboarding.html">Заполнить</a></div>
+    </section>
+
+    <section class="card highlight">
+      <div>
+        <div class="muted small">Статус</div>
+        <div id="restInfo" class="status">Проверяем…</div>
+      </div>
+      <div class="env">
+        <button id="loginBtn" class="btn primary" style="display:none">Войти</button>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <div class="card">
+        <h3>Новое предложение</h3>
+        <form id="createForm" class="form">
+          <div class="field"><label>Название*</label><input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня"/></div>
+          <div class="field"><label>Описание</label><textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea></div>
+          <div class="row gap">
+            <div class="field" style="flex:1"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199"/></div>
+            <div class="field" style="width:140px"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5"/></div>
+          </div>
+          <div class="field"><label>Действует до</label><input id="expires" type="datetime-local"/><div class="hint muted small">Локальное время.</div></div>
+          <div class="field"><label>Фото (опционально)</label><input id="photo" type="file" accept="image/*"/><div class="hint muted small">PNG/JPG до 4 МБ</div></div>
+          <div class="actions"><button class="btn primary" type="submit">Сохранить</button><button class="btn ghost" type="reset">Сбросить</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>Быстрый старт</h3>
+        <div class="tips-grid" id="tipsGrid">
+          <div class="tip"><b>1. Заполните профиль</b><span class="muted small">Телефон, адрес, город — чтобы вас нашли.</span></div>
+          <div class="tip"><b>2. Добавьте первое предложение</b><span class="muted small">Короткое название, фото, срок действия до конца дня.</span></div>
+          <div class="tip"><b>3. Держите остаток &gt; 0</b><span class="muted small">Так карточка остаётся в выдаче.</span></div>
+          <div class="tip"><b>4. Фото решает</b><span class="muted small">Снимок блюда 3:2, без текста и водяных знаков.</span></div>
+          <div class="tip"><b>5. Чёткие цены</b><span class="muted small">Дисконт 40–70% повышает конверсию.</span></div>
+          <div class="tip"><b>6. Время — деньги</b><span class="muted small">Ставьте «Действует до» ближе к закрытию.</span></div>
+        </div>
+        <div id="tipsCallout" class="callout" style="display:none; margin-top:10px;"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="list-head">
+        <h3>Мои предложения</h3>
+        <div class="filters">
+          <input id="search" class="input" placeholder="Поиск по названию…"/>
+        </div>
+      </div>
+      <div id="empty" class="empty hidden">
+        <div class="empty-emoji">🗂️</div>
+        <div class="empty-title">Пока пусто</div>
+        <div class="empty-sub">Добавьте первое предложение выше.</div>
+      </div>
+      <div id="offers" class="cards-grid"></div>
+    </section>
+
+    <section class="card">
+      <div class="list-head">
+        <h3>Брони</h3>
+        <div class="filters">
+          <select id="resFilter" class="input">
+            <option value="all">Все</option>
+            <option value="active">Активные</option>
+            <option value="redeemed">Погашенные</option>
+            <option value="expired">Истекшие</option>
+            <option value="canceled">Отменённые</option>
+          </select>
+        </div>
+      </div>
+      <div id="resEmpty" class="empty hidden">
+        <div class="empty-emoji">📭</div>
+        <div class="empty-title">Броней пока нет</div>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="resTable" style="width:100%">
+          <thead><tr><th>Код</th><th>Оффер</th><th>Покупатель</th><th>Статус</th><th>Действует до</th><th>Создано</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer"><button id="addFloating" class="fab">＋ Добавить</button></footer>
+
+  <!-- Настройки в ЛК -->
+  <dialog id="settingsModal" class="modal">
+    <div class="modal-card">
+      <button class="modal-close" id="settingsClose" aria-label="Закрыть">✕</button>
+      <h3>Настройки</h3>
+      <div class="field">
+        <label>Активный ресторан</label>
+        <select id="restSelect" class="input"></select>
+      </div>
+      <div class="field">
+        <label>Создать новый ресторан</label>
+        <div class="row gap">
+          <input id="newRestName" class="input" placeholder="Название…"/>
+          <button id="createRestBtn" class="btn primary" type="button">Создать</button>
+        </div>
+        <div class="muted small">Будет привязан к вашему Telegram и выбран активным.</div>
+      </div>
+      <div class="actions end">
+        <a class="btn" href="./onboarding.html">Заполнить профиль</a>
+        <button class="btn primary" id="saveSettings" type="button">Сохранить</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="editModal" class="modal">
+    <form method="dialog" class="modal-card" id="editForm" enctype="multipart/form-data">
+      <button class="modal-close" id="editClose" aria-label="Закрыть">✕</button>
+      <h3>Редактирование</h3>
+      <input type="hidden" id="editId"/>
+      <div class="field"><label>Название</label><input id="editTitle" maxlength="120"/></div>
+      <div class="field"><label>Описание</label><textarea id="editDesc" rows="3" maxlength="600"></textarea></div>
+      <div class="row gap">
+        <div class="field"><label>Цена (₽)</label><input id="editPrice" type="number" step="0.01" min="0"/></div>
+        <div class="field"><label>Количество</label><input id="editQty" type="number" step="1" min="0"/></div>
+      </div>
+      <div class="field"><label>Действует до</label><input id="editExpires" type="datetime-local"/></div>
+      <div class="field"><label>Фото</label><input id="editPhoto" type="file" accept="image/*"/></div>
+      <div class="actions end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" id="editSubmit" value="default">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
   <script src="./rest.js"></script>
-  <script src="./rest_register_fix.js"></script>
 </body>
 </html>
