@@ -17,23 +17,27 @@
     .btn{appearance:none;border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
     .btn.primary{background:#2E7D32;color:#fff}
     .btn.ghost{background:transparent;border:1px solid #B0BEC5}
-    .row{display:flex;gap:8px;align-items:center}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .status{padding:10px;border-radius:10px;background:#F5F5F5;margin-top:8px}
     .list{max-height:360px;overflow:auto}
     .item{padding:8px 6px;border-bottom:1px dashed #ECEFF1}
     .item:last-child{border-bottom:none}
     .code{font-family:ui-monospace,Menlo,monospace;font-weight:700}
+    canvas#frame{display:none}
   </style>
+  <script defer src="./js/nav_patch.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
   <header class="header"><div class="wrap">
     <h2 style="color:#fff;margin:0">Сканер / выдача</h2>
-    <div class="muted" style="color:#E0F2F1">Погасите бронь по QR или коду. Работает офлайн-поиск и ручной ввод.</div>
+    <div class="muted" style="color:#E0F2F1">Погасите бронь по QR или коду. Работает камера и ручной ввод. Есть резервный распознаватель (jsQR).</div>
   </div></header>
   <main class="wrap grid">
     <section class="card">
       <h3>Камера</h3>
       <video id="video" playsinline></video>
+      <canvas id="frame"></canvas>
       <div class="row" style="margin-top:8px">
         <button class="btn primary" id="startBtn">Старт сканирования</button>
         <button class="btn ghost" id="stopBtn">Стоп</button>
@@ -53,6 +57,7 @@
     const API = new URLSearchParams(location.search).get('api') || localStorage.getItem('foody_api') || 'http://localhost:8000';
     const els = {
       video: document.getElementById('video'),
+      frame: document.getElementById('frame'),
       start: document.getElementById('startBtn'),
       stop: document.getElementById('stopBtn'),
       status: document.getElementById('status'),
@@ -60,7 +65,7 @@
       redeemManual: document.getElementById('redeemManual'),
       list: document.getElementById('resList'),
     };
-    let stream = null, raf = null, ctx=null, cvs=null, scanning=false, lastCode='';
+    let stream = null, raf = null, scanning=false, lastCode='';
 
     function toast(txt, ok){
       els.status.textContent = txt;
@@ -99,7 +104,6 @@
       }catch(e){ console.error(e); }
     }
 
-    // Barcode via BarcodeDetector if available, else try simple QR lib (not bundled here)
     async function start(){
       if(scanning) return;
       try {
@@ -108,6 +112,8 @@
         await els.video.play();
         scanning = true;
         toast('Сканирование запущено', true);
+
+        // Try native BarcodeDetector first
         if ('BarcodeDetector' in window) {
           const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
           const tick = async () => {
@@ -117,23 +123,40 @@
               const codes = await detector.detect(bitmap);
               if (codes && codes.length) {
                 const code = (codes[0].rawValue||'').trim();
-                if (code && code !== lastCode) {
-                  lastCode = code;
-                  await redeem(code);
-                }
+                if (code && code !== lastCode) { lastCode = code; await redeem(code); }
               }
             } catch {}
             raf = requestAnimationFrame(tick);
           };
           raf = requestAnimationFrame(tick);
-        } else {
-          // Fallback: manual only (we could add jsQR later)
-          toast('Сканер браузера не поддерживается, используйте ручной ввод', false);
+          return;
         }
+
+        // Fallback: jsQR on canvas frames (every ~200ms)
+        const ctx = els.frame.getContext('2d');
+        const loop = () => {
+          if (!scanning) return;
+          const vw = els.video.videoWidth, vh = els.video.videoHeight;
+          if (vw && vh) {
+            els.frame.width = vw; els.frame.height = vh;
+            ctx.drawImage(els.video, 0, 0, vw, vh);
+            try {
+              if (window.jsQR) {
+                const img = ctx.getImageData(0,0,vw,vh);
+                const res = window.jsQR(img.data, vw, vh);
+                const code = (res && res.data && res.data.trim()) || '';
+                if (code && code !== lastCode) { lastCode = code; redeem(code); }
+              }
+            } catch {}
+          }
+          setTimeout(loop, 200);
+        };
+        loop();
       } catch (e) {
         toast('Нет доступа к камере', false);
       }
     }
+
     function stop(){
       scanning=false;
       if (raf) cancelAnimationFrame(raf);
@@ -144,7 +167,6 @@
     els.start.onclick = start;
     els.stop.onclick = stop;
     els.redeemManual.onclick = () => redeem((els.manual.value||'').trim());
-
     loadList();
   })();
   </script>
