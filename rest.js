@@ -1,4 +1,7 @@
 // Foody LK — create restaurant robust, CORS diagnostics, improved tips
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="./rest_ready_patch.js"></script>
+<script src="./rest.js"></script>
 (() => {
   const urlApi = new URLSearchParams(location.search).get('api');
   if (urlApi) localStorage.setItem('foody_api', urlApi);
