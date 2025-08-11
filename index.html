@@ -6,6 +6,17 @@
   <title>Foody — Личный кабинет</title>
   <link rel="stylesheet" href="./styles.css"/>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    .modal-card { position: relative; }
+    .modal-close { position:absolute; top:10px; right:10px; border:none; background:transparent; font-size:20px; cursor:pointer; }
+    .row.gap { gap:8px; }
+    .muted.small { font-size:12px; color:#666; }
+    .tips-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .tip{ padding:12px; border-radius:12px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .tip b{ display:block; margin-bottom:4px }
+    @media (max-width: 760px){ .tips-grid{ grid-template-columns:1fr } }
+    .callout{ border-left:4px solid #10b981; background:#ecfdf5; padding:10px 12px; border-radius:8px; }
+  </style>
 </head>
 <body class="light">
   <header class="topbar">
@@ -47,7 +58,7 @@
         <form id="createForm" class="form">
           <div class="field"><label>Название*</label><input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня"/></div>
           <div class="field"><label>Описание</label><textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea></div>
-          <div class="row">
+          <div class="row gap">
             <div class="field" style="flex:1"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199"/></div>
             <div class="field" style="width:140px"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5"/></div>
           </div>
@@ -57,8 +68,16 @@
         </form>
       </div>
       <div class="card">
-        <h3>Подсказки</h3>
-        <ul class="tips"><li>Короткие названия — выше CTR.</li><li>Поддерживайте остаток &gt; 0.</li><li>Редактируйте/удаляйте ниже.</li></ul>
+        <h3>Быстрый старт</h3>
+        <div class="tips-grid" id="tipsGrid">
+          <div class="tip"><b>1. Заполните профиль</b><span class="muted small">Телефон, адрес, город — чтобы вас нашли.</span></div>
+          <div class="tip"><b>2. Добавьте первое предложение</b><span class="muted small">Короткое название, фото, срок действия до конца дня.</span></div>
+          <div class="tip"><b>3. Держите остаток &gt; 0</b><span class="muted small">Так карточка остаётся в выдаче.</span></div>
+          <div class="tip"><b>4. Фото решает</b><span class="muted small">Снимок блюда 3:2, без текста и водяных знаков.</span></div>
+          <div class="tip"><b>5. Чёткие цены</b><span class="muted small">Дисконт 40–70% повышает конверсию.</span></div>
+          <div class="tip"><b>6. Время — деньги</b><span class="muted small">Ставьте «Действует до» ближе к закрытию.</span></div>
+        </div>
+        <div id="tipsCallout" class="callout" style="display:none; margin-top:10px;"></div>
       </div>
     </section>
 
@@ -105,8 +124,10 @@
 
   <footer class="footer"><button id="addFloating" class="fab">＋ Добавить</button></footer>
 
+  <!-- Настройки в ЛК -->
   <dialog id="settingsModal" class="modal">
     <div class="modal-card">
+      <button class="modal-close" id="settingsClose" aria-label="Закрыть">✕</button>
       <h3>Настройки</h3>
       <div class="field">
         <label>Активный ресторан</label>
@@ -114,29 +135,32 @@
       </div>
       <div class="field">
         <label>Создать новый ресторан</label>
-        <div class="row">
+        <div class="row gap">
           <input id="newRestName" class="input" placeholder="Название…"/>
-          <button id="createRestBtn" class="btn primary">Создать</button>
+          <button id="createRestBtn" class="btn primary" type="button">Создать</button>
         </div>
+        <div class="muted small">Будет привязан к вашему Telegram и выбран активным.</div>
       </div>
       <div class="actions end">
         <a class="btn" href="./onboarding.html">Заполнить профиль</a>
-        <button class="btn primary" id="saveSettings">Сохранить</button>
+        <button class="btn primary" id="saveSettings" type="button">Сохранить</button>
       </div>
     </div>
   </dialog>
 
   <dialog id="editModal" class="modal">
-    <form method="dialog" class="modal-card" id="editForm">
+    <form method="dialog" class="modal-card" id="editForm" enctype="multipart/form-data">
+      <button class="modal-close" id="editClose" aria-label="Закрыть">✕</button>
       <h3>Редактирование</h3>
       <input type="hidden" id="editId"/>
       <div class="field"><label>Название</label><input id="editTitle" maxlength="120"/></div>
       <div class="field"><label>Описание</label><textarea id="editDesc" rows="3" maxlength="600"></textarea></div>
-      <div class="row">
+      <div class="row gap">
         <div class="field"><label>Цена (₽)</label><input id="editPrice" type="number" step="0.01" min="0"/></div>
         <div class="field"><label>Количество</label><input id="editQty" type="number" step="1" min="0"/></div>
       </div>
       <div class="field"><label>Действует до</label><input id="editExpires" type="datetime-local"/></div>
+      <div class="field"><label>Фото</label><input id="editPhoto" type="file" accept="image/*"/></div>
       <div class="actions end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" id="editSubmit" value="default">Сохранить</button></div>
     </form>
   </dialog>
