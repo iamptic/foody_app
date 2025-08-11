@@ -8,69 +8,84 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">🍽️ Foody</div>
+  <header class="appbar glass">
+    <div class="brand">
+      <span class="logo">🍽️</span>
+      <span>Foody</span>
+    </div>
     <nav class="tabs">
       <button id="tabBuyer" class="tab active">Покупателю</button>
-      <button id="tabMerchant" class="tab">Ресторан (ЛК)</button>
+      <button id="tabMerchant" class="tab">Ресторан</button>
     </nav>
   </header>
 
+  <section class="hero gradient">
+    <div class="hero-text">
+      <h1>Вкусно, выгодно, без отходов</h1>
+      <p>Находите блюда со скидкой рядом или управляйте предложениями вашего заведения.</p>
+    </div>
+  </section>
+
   <!-- Покупатель -->
   <main id="buyerView">
-    <section class="panel">
-      <div class="row">
-        <label for="citySelect">Город</label>
-        <select id="citySelect"></select>
+    <section class="card glass">
+      <div class="row wrap gap">
+        <div class="field">
+          <label for="citySelect">Город</label>
+          <select id="citySelect"></select>
+        </div>
         <button id="refreshBuyer" class="btn">Обновить</button>
       </div>
       <div id="buyerEmpty" class="empty hidden">Пока нет предложений. Выберите другой город или нажмите «Обновить».</div>
-      <div id="buyerList" class="grid"></div>
+      <div id="buyerList" class="cards"></div>
     </section>
   </main>
 
   <!-- Ресторан (ЛК) -->
   <main id="merchantView" class="hidden">
-    <section class="panel">
-      <div id="restInfo" class="muted">Загрузка…</div>
-      <div id="profileBanner" class="banner hidden">
-        <div>Заполните профиль (телефон, адрес и город), чтобы вас видели покупатели.</div>
-        <button id="settingsBtn" class="btn">Открыть настройки</button>
-      </div>
-      <div class="row gap">
-        <button id="loginBtn" class="btn secondary hidden">Войти</button>
-        <button id="logoutBtn" class="btn danger">Выйти</button>
-        <button id="settingsBtn2" class="btn">Настройки</button>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h3>Добавить предложение</h3>
-      <form id="createForm" class="form">
-        <div class="grid2">
-          <label>Название <input id="title" required maxlength="80"></label>
-          <label>Цена (₽) <input id="price" type="number" min="0" step="1" required></label>
-          <label>Описание <textarea id="desc" rows="2" maxlength="280"></textarea></label>
-          <label>Количество <input id="qty" type="number" min="1" step="1" required value="1"></label>
-          <label>Действует до <input id="expires" type="datetime-local"></label>
-          <label>Фото <input id="photo" type="file" accept="image/*"></label>
+    <section class="grid2">
+      <div class="card glass">
+        <div class="card-title">Статус</div>
+        <div id="restInfo" class="muted">Загрузка…</div>
+        <div id="profileBanner" class="callout hidden">
+          <div>Заполните профиль (телефон, адрес и город), чтобы вас видели покупатели.</div>
+          <button id="settingsBtn" class="btn ghost">Открыть настройки</button>
         </div>
-        <button class="btn" type="submit">Создать</button>
-      </form>
+        <div class="row gap">
+          <button id="loginBtn" class="btn ghost hidden">Войти</button>
+          <button id="logoutBtn" class="btn danger">Выйти</button>
+          <button id="settingsBtn2" class="btn">Настройки</button>
+        </div>
+      </div>
+
+      <div class="card glass">
+        <div class="card-title">Новое предложение</div>
+        <form id="createForm" class="form grid2 tight">
+          <label>Название<input id="title" required maxlength="80" placeholder="Напр., Сет роллов -70%"></label>
+          <label>Цена (₽)<input id="price" type="number" min="0" step="1" required placeholder="399"></label>
+          <label>Описание<textarea id="desc" rows="2" maxlength="280" placeholder="Кратко опишите состав/условия самовывоза"></textarea></label>
+          <label>Количество<input id="qty" type="number" min="1" step="1" required value="1"></label>
+          <label>Действует до<input id="expires" type="datetime-local"></label>
+          <label>Фото<input id="photo" type="file" accept="image/*"></label>
+          <div class="full">
+            <button class="btn" type="submit">Создать</button>
+          </div>
+        </form>
+      </div>
     </section>
 
-    <section class="panel">
+    <section class="card glass">
       <div class="row between">
-        <h3>Ваши предложения</h3>
+        <div class="card-title">Ваши предложения</div>
         <input id="search" class="search" placeholder="Поиск по названию">
       </div>
       <div id="empty" class="empty hidden">Пока нет предложений.</div>
-      <div id="offers" class="grid"></div>
+      <div id="offers" class="cards"></div>
     </section>
 
-    <section class="panel">
-      <h3>Брони</h3>
-      <div class="row">
+    <section class="card glass">
+      <div class="card-title">Брони</div>
+      <div class="row gap">
         <label for="resFilter">Фильтр</label>
         <select id="resFilter">
           <option value="all">Все</option>
@@ -82,9 +97,7 @@
       <div id="resEmpty" class="empty">Пока нет броней.</div>
       <div class="tablewrap">
         <table id="resTable" class="table">
-          <thead>
-            <tr><th>Код</th><th>Предложение</th><th>Покупатель</th><th>Статус</th><th>Действует до</th><th>Создано</th></tr>
-          </thead>
+          <thead><tr><th>Код</th><th>Предложение</th><th>Покупатель</th><th>Статус</th><th>Действует до</th><th>Создано</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -92,44 +105,43 @@
   </main>
 
   <!-- Модал Настройки -->
-  <dialog id="settingsModal" class="dialog">
+  <dialog id="settingsModal" class="dialog glass">
     <div class="dialog-header">
       <h3>Настройки</h3>
       <button id="settingsClose" class="iconbtn" aria-label="Закрыть">✕</button>
     </div>
-
     <div id="tipsCallout" class="callout hidden"></div>
-
     <div class="block">
       <h4>Активный ресторан</h4>
       <select id="restSelect"></select>
       <button id="saveSettings" class="btn">Сохранить</button>
     </div>
-
     <div class="block">
-      <h4>Быстрая регистрация ресторана</h4>
-      <div class="row">
+      <h4>Быстрая регистрация</h4>
+      <div class="row wrap gap">
         <input id="newRestName" placeholder="Например, «Бургер & Кофе»">
-        <button id="createRestBtn" class="btn">Создать</button>
+        <button id="createRestBtn" class="btn">Создать ресторан</button>
       </div>
     </div>
   </dialog>
 
-  <!-- Модал Редактировать оффер -->
-  <dialog id="editModal" class="dialog">
+  <!-- Модал Редактировать -->
+  <dialog id="editModal" class="dialog glass">
     <div class="dialog-header">
       <h3>Редактировать</h3>
-      <button id="editClose" class="iconbtn">✕</button>
+      <button id="editClose" class="iconbtn" aria-label="Закрыть">✕</button>
     </div>
-    <form id="editForm" class="form">
+    <form id="editForm" class="form grid2 tight">
       <input id="editId" type="hidden">
-      <label>Название <input id="editTitle" required maxlength="80"></label>
-      <label>Описание <textarea id="editDesc" rows="2" maxlength="280"></textarea></label>
-      <label>Цена <input id="editPrice" type="number" min="0" step="1"></label>
-      <label>Количество <input id="editQty" type="number" min="0" step="1"></label>
-      <label>Действует до <input id="editExpires" type="datetime-local"></label>
-      <label>Фото <input id="editPhoto" type="file" accept="image/*"></label>
-      <button class="btn" type="submit">Сохранить</button>
+      <label>Название<input id="editTitle" required maxlength="80"></label>
+      <label>Цена<input id="editPrice" type="number" min="0" step="1"></label>
+      <label class="full">Описание<textarea id="editDesc" rows="3" maxlength="280"></textarea></label>
+      <label>Количество<input id="editQty" type="number" min="0" step="1"></label>
+      <label>Действует до<input id="editExpires" type="datetime-local"></label>
+      <label>Фото<input id="editPhoto" type="file" accept="image/*"></label>
+      <div class="full">
+        <button class="btn" type="submit">Сохранить</button>
+      </div>
     </form>
   </dialog>
 
