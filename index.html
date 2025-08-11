@@ -1,170 +1,142 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Foody — Личный кабинет</title>
-  <link rel="stylesheet" href="./styles.css"/>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Foody — мини‑приложение</title>
+  <link rel="stylesheet" href="./styles.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    .modal-card { position: relative; }
-    .modal-close { position:absolute; top:10px; right:10px; border:none; background:transparent; font-size:20px; cursor:pointer; }
-    .row.gap { gap:8px; }
-    .muted.small { font-size:12px; color:#666; }
-    .tips-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
-    .tip{ padding:12px; border-radius:12px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.06)}
-    .tip b{ display:block; margin-bottom:4px }
-    @media (max-width: 760px){ .tips-grid{ grid-template-columns:1fr } }
-    .callout{ border-left:4px solid #10b981; background:#ecfdf5; padding:10px 12px; border-radius:8px; }
-  </style>
 </head>
-<body class="light">
+<body>
   <header class="topbar">
-    <div class="brand">
-      <div class="logo">🍲</div>
-      <div class="title">
-        <div class="name">Foody</div>
-        <div class="subtitle">ЛК ресторана</div>
-      </div>
-    </div>
-    <div class="top-actions">
-      <button id="settingsBtn" class="btn ghost">Настройки</button>
-      <button id="logoutBtn" class="btn ghost">Выйти</button>
-    </div>
+    <div class="brand">🍽️ Foody</div>
+    <nav class="tabs">
+      <button id="tabBuyer" class="tab active">Покупателю</button>
+      <button id="tabMerchant" class="tab">Ресторан (ЛК)</button>
+    </nav>
   </header>
 
-  <main class="container">
-    <section class="card highlight banner" id="profileBanner" style="display:none">
-      <div>
-        <div class="banner-title">Заполните профиль</div>
-        <div class="banner-sub">Добавьте телефон, адрес и город — так вас увидят покупатели</div>
+  <!-- Покупатель -->
+  <main id="buyerView">
+    <section class="panel">
+      <div class="row">
+        <label for="citySelect">Город</label>
+        <select id="citySelect"></select>
+        <button id="refreshBuyer" class="btn">Обновить</button>
       </div>
-      <div><a class="btn primary" href="./onboarding.html">Заполнить</a></div>
+      <div id="buyerEmpty" class="empty hidden">Пока нет предложений. Выберите другой город или нажмите «Обновить».</div>
+      <div id="buyerList" class="grid"></div>
+    </section>
+  </main>
+
+  <!-- Ресторан (ЛК) -->
+  <main id="merchantView" class="hidden">
+    <section class="panel">
+      <div id="restInfo" class="muted">Загрузка…</div>
+      <div id="profileBanner" class="banner hidden">
+        <div>Заполните профиль (телефон, адрес и город), чтобы вас видели покупатели.</div>
+        <button id="settingsBtn" class="btn">Открыть настройки</button>
+      </div>
+      <div class="row gap">
+        <button id="loginBtn" class="btn secondary hidden">Войти</button>
+        <button id="logoutBtn" class="btn danger">Выйти</button>
+        <button id="settingsBtn2" class="btn">Настройки</button>
+      </div>
     </section>
 
-    <section class="card highlight">
-      <div>
-        <div class="muted small">Статус</div>
-        <div id="restInfo" class="status">Проверяем…</div>
-      </div>
-      <div class="env">
-        <button id="loginBtn" class="btn primary" style="display:none">Войти</button>
-      </div>
-    </section>
-
-    <section class="grid two">
-      <div class="card">
-        <h3>Новое предложение</h3>
-        <form id="createForm" class="form">
-          <div class="field"><label>Название*</label><input id="title" required maxlength="120" placeholder="Например, Набор выпечки дня"/></div>
-          <div class="field"><label>Описание</label><textarea id="desc" rows="3" maxlength="600" placeholder="Краткое описание, состав…"></textarea></div>
-          <div class="row gap">
-            <div class="field" style="flex:1"><label>Цена (₽)*</label><input id="price" type="number" step="0.01" min="0" required placeholder="199"/></div>
-            <div class="field" style="width:140px"><label>Количество*</label><input id="qty" type="number" min="1" step="1" required placeholder="5"/></div>
-          </div>
-          <div class="field"><label>Действует до</label><input id="expires" type="datetime-local"/><div class="hint muted small">Локальное время.</div></div>
-          <div class="field"><label>Фото (опционально)</label><input id="photo" type="file" accept="image/*"/><div class="hint muted small">PNG/JPG до 4 МБ</div></div>
-          <div class="actions"><button class="btn primary" type="submit">Сохранить</button><button class="btn ghost" type="reset">Сбросить</button></div>
-        </form>
-      </div>
-      <div class="card">
-        <h3>Быстрый старт</h3>
-        <div class="tips-grid" id="tipsGrid">
-          <div class="tip"><b>1. Заполните профиль</b><span class="muted small">Телефон, адрес, город — чтобы вас нашли.</span></div>
-          <div class="tip"><b>2. Добавьте первое предложение</b><span class="muted small">Короткое название, фото, срок действия до конца дня.</span></div>
-          <div class="tip"><b>3. Держите остаток &gt; 0</b><span class="muted small">Так карточка остаётся в выдаче.</span></div>
-          <div class="tip"><b>4. Фото решает</b><span class="muted small">Снимок блюда 3:2, без текста и водяных знаков.</span></div>
-          <div class="tip"><b>5. Чёткие цены</b><span class="muted small">Дисконт 40–70% повышает конверсию.</span></div>
-          <div class="tip"><b>6. Время — деньги</b><span class="muted small">Ставьте «Действует до» ближе к закрытию.</span></div>
+    <section class="panel">
+      <h3>Добавить предложение</h3>
+      <form id="createForm" class="form">
+        <div class="grid2">
+          <label>Название <input id="title" required maxlength="80"></label>
+          <label>Цена (₽) <input id="price" type="number" min="0" step="1" required></label>
+          <label>Описание <textarea id="desc" rows="2" maxlength="280"></textarea></label>
+          <label>Количество <input id="qty" type="number" min="1" step="1" required value="1"></label>
+          <label>Действует до <input id="expires" type="datetime-local"></label>
+          <label>Фото <input id="photo" type="file" accept="image/*"></label>
         </div>
-        <div id="tipsCallout" class="callout" style="display:none; margin-top:10px;"></div>
-      </div>
+        <button class="btn" type="submit">Создать</button>
+      </form>
     </section>
 
-    <section class="card">
-      <div class="list-head">
-        <h3>Мои предложения</h3>
-        <div class="filters">
-          <input id="search" class="input" placeholder="Поиск по названию…"/>
-        </div>
+    <section class="panel">
+      <div class="row between">
+        <h3>Ваши предложения</h3>
+        <input id="search" class="search" placeholder="Поиск по названию">
       </div>
-      <div id="empty" class="empty hidden">
-        <div class="empty-emoji">🗂️</div>
-        <div class="empty-title">Пока пусто</div>
-        <div class="empty-sub">Добавьте первое предложение выше.</div>
-      </div>
-      <div id="offers" class="cards-grid"></div>
+      <div id="empty" class="empty hidden">Пока нет предложений.</div>
+      <div id="offers" class="grid"></div>
     </section>
 
-    <section class="card">
-      <div class="list-head">
-        <h3>Брони</h3>
-        <div class="filters">
-          <select id="resFilter" class="input">
-            <option value="all">Все</option>
-            <option value="active">Активные</option>
-            <option value="redeemed">Погашенные</option>
-            <option value="expired">Истекшие</option>
-            <option value="canceled">Отменённые</option>
-          </select>
-        </div>
+    <section class="panel">
+      <h3>Брони</h3>
+      <div class="row">
+        <label for="resFilter">Фильтр</label>
+        <select id="resFilter">
+          <option value="all">Все</option>
+          <option value="active">Активные</option>
+          <option value="redeemed">Выданы</option>
+          <option value="expired">Просрочены</option>
+        </select>
       </div>
-      <div id="resEmpty" class="empty hidden">
-        <div class="empty-emoji">📭</div>
-        <div class="empty-title">Броней пока нет</div>
-      </div>
-      <div class="table-wrap">
-        <table class="table" id="resTable" style="width:100%">
-          <thead><tr><th>Код</th><th>Оффер</th><th>Покупатель</th><th>Статус</th><th>Действует до</th><th>Создано</th></tr></thead>
+      <div id="resEmpty" class="empty">Пока нет броней.</div>
+      <div class="tablewrap">
+        <table id="resTable" class="table">
+          <thead>
+            <tr><th>Код</th><th>Предложение</th><th>Покупатель</th><th>Статус</th><th>Действует до</th><th>Создано</th></tr>
+          </thead>
           <tbody></tbody>
         </table>
       </div>
     </section>
   </main>
 
-  <footer class="footer"><button id="addFloating" class="fab">＋ Добавить</button></footer>
-
-  <!-- Настройки в ЛК -->
-  <dialog id="settingsModal" class="modal">
-    <div class="modal-card">
-      <button class="modal-close" id="settingsClose" aria-label="Закрыть">✕</button>
+  <!-- Модал Настройки -->
+  <dialog id="settingsModal" class="dialog">
+    <div class="dialog-header">
       <h3>Настройки</h3>
-      <div class="field">
-        <label>Активный ресторан</label>
-        <select id="restSelect" class="input"></select>
-      </div>
-      <div class="field">
-        <label>Создать новый ресторан</label>
-        <div class="row gap">
-          <input id="newRestName" class="input" placeholder="Название…"/>
-          <button id="createRestBtn" class="btn primary" type="button">Создать</button>
-        </div>
-        <div class="muted small">Будет привязан к вашему Telegram и выбран активным.</div>
-      </div>
-      <div class="actions end">
-        <a class="btn" href="./onboarding.html">Заполнить профиль</a>
-        <button class="btn primary" id="saveSettings" type="button">Сохранить</button>
+      <button id="settingsClose" class="iconbtn" aria-label="Закрыть">✕</button>
+    </div>
+
+    <div id="tipsCallout" class="callout hidden"></div>
+
+    <div class="block">
+      <h4>Активный ресторан</h4>
+      <select id="restSelect"></select>
+      <button id="saveSettings" class="btn">Сохранить</button>
+    </div>
+
+    <div class="block">
+      <h4>Быстрая регистрация ресторана</h4>
+      <div class="row">
+        <input id="newRestName" placeholder="Например, «Бургер & Кофе»">
+        <button id="createRestBtn" class="btn">Создать</button>
       </div>
     </div>
   </dialog>
 
-  <dialog id="editModal" class="modal">
-    <form method="dialog" class="modal-card" id="editForm" enctype="multipart/form-data">
-      <button class="modal-close" id="editClose" aria-label="Закрыть">✕</button>
-      <h3>Редактирование</h3>
-      <input type="hidden" id="editId"/>
-      <div class="field"><label>Название</label><input id="editTitle" maxlength="120"/></div>
-      <div class="field"><label>Описание</label><textarea id="editDesc" rows="3" maxlength="600"></textarea></div>
-      <div class="row gap">
-        <div class="field"><label>Цена (₽)</label><input id="editPrice" type="number" step="0.01" min="0"/></div>
-        <div class="field"><label>Количество</label><input id="editQty" type="number" step="1" min="0"/></div>
-      </div>
-      <div class="field"><label>Действует до</label><input id="editExpires" type="datetime-local"/></div>
-      <div class="field"><label>Фото</label><input id="editPhoto" type="file" accept="image/*"/></div>
-      <div class="actions end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" id="editSubmit" value="default">Сохранить</button></div>
+  <!-- Модал Редактировать оффер -->
+  <dialog id="editModal" class="dialog">
+    <div class="dialog-header">
+      <h3>Редактировать</h3>
+      <button id="editClose" class="iconbtn">✕</button>
+    </div>
+    <form id="editForm" class="form">
+      <input id="editId" type="hidden">
+      <label>Название <input id="editTitle" required maxlength="80"></label>
+      <label>Описание <textarea id="editDesc" rows="2" maxlength="280"></textarea></label>
+      <label>Цена <input id="editPrice" type="number" min="0" step="1"></label>
+      <label>Количество <input id="editQty" type="number" min="0" step="1"></label>
+      <label>Действует до <input id="editExpires" type="datetime-local"></label>
+      <label>Фото <input id="editPhoto" type="file" accept="image/*"></label>
+      <button class="btn" type="submit">Сохранить</button>
     </form>
   </dialog>
 
+  <button id="addFloating" class="fab">＋</button>
   <div id="toast" class="toast hidden"></div>
-<script src="./rest.js"></script></body>
+
+  <script src="./rest_bootstrap.js"></script>
+  <script src="./rest.js"></script>
+</body>
 </html>
